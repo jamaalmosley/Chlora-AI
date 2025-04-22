@@ -52,6 +52,18 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+        // Medical themed colors
+        medical: {
+          primary: '#00838f', // Teal
+          secondary: '#29b6f6', // Light blue
+          accent: '#4dd0e1', // Cyan
+          highlight: '#b2ebf2', // Light cyan
+          success: '#4caf50', // Green
+          warning: '#ff9800', // Orange
+          error: '#f44336', // Red
+          light: '#e0f7fa', // Very light cyan
+          dark: '#006064', // Dark teal
+        },
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
