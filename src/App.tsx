@@ -29,6 +29,10 @@ import DoctorProfile from "./pages/doctor/Profile";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
+import AdminDoctors from "./pages/admin/Doctors";
+import AdminPatients from "./pages/admin/Patients";
+import AdminReports from "./pages/admin/Reports";
+import AdminSettings from "./pages/admin/Settings";
 
 const queryClient = new QueryClient();
 
@@ -172,6 +176,38 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <AdminDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/doctors" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminDoctors />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/patients" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminPatients />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/reports" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminReports />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/settings" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminSettings />
                   </ProtectedRoute>
                 } 
               />
