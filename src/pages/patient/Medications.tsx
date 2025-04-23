@@ -36,10 +36,10 @@ export default function PatientMedications() {
     );
   }
 
-  // Use medications from patient data or provide default empty array
+  // Ensure medications are properly initialized with all required fields
   const medications = patient.medications || [];
-
-  // Add some mock medications if none exist
+  
+  // Add mock medications if none exist
   if (medications.length === 0) {
     medications.push(
       {
@@ -68,42 +68,75 @@ export default function PatientMedications() {
   }
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }).format(date);
+    // Check if the date string is valid before formatting
+    if (!dateStr || dateStr.trim() === '') {
+      return 'No date provided';
+    }
+    
+    try {
+      const date = new Date(dateStr);
+      // Check if date is valid before formatting
+      if (isNaN(date.getTime())) {
+        return 'Invalid date';
+      }
+      
+      return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }).format(date);
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return 'Error formatting date';
+    }
   };
 
   const calculateProgress = (startDate: string, endDate: string) => {
-    const start = new Date(startDate).getTime();
-    const end = new Date(endDate).getTime();
-    const today = new Date().getTime();
-    
-    if (today <= start) return 0;
-    if (today >= end) return 100;
-    
-    const totalDuration = end - start;
-    const elapsed = today - start;
-    return Math.round((elapsed / totalDuration) * 100);
+    try {
+      const start = new Date(startDate).getTime();
+      const end = new Date(endDate).getTime();
+      const today = new Date().getTime();
+      
+      // Check if dates are valid
+      if (isNaN(start) || isNaN(end)) {
+        return 0;
+      }
+      
+      if (today <= start) return 0;
+      if (today >= end) return 100;
+      
+      const totalDuration = end - start;
+      const elapsed = today - start;
+      return Math.round((elapsed / totalDuration) * 100);
+    } catch (error) {
+      console.error("Error calculating progress:", error);
+      return 0;
+    }
   };
 
   const renderMedicationCard = (medication: Medication) => {
-    const progress = calculateProgress(medication.startDate, medication.endDate);
-    const isActive = new Date() <= new Date(medication.endDate);
+    // Ensure all required fields exist
+    const med = {
+      ...medication,
+      endDate: medication.endDate || new Date().toISOString().split('T')[0],
+      refillsRemaining: medication.refillsRemaining ?? 0,
+      instructions: medication.instructions || "No special instructions provided."
+    };
+    
+    const progress = calculateProgress(med.startDate, med.endDate);
+    const isActive = new Date() <= new Date(med.endDate);
 
     return (
-      <Card key={medication.id} className="mb-4">
+      <Card key={med.id} className="mb-4">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
             <div>
               <CardTitle className="text-xl flex items-center">
                 <Pill className="mr-2 h-5 w-5 text-medical-primary" />
-                {medication.name}
+                {med.name}
               </CardTitle>
               <CardDescription className="text-md mt-1">
-                {medication.dosage}
+                {med.dosage}
               </CardDescription>
             </div>
             <Badge 
@@ -117,13 +150,13 @@ export default function PatientMedications() {
         <CardContent className="space-y-3">
           <div className="flex items-center text-sm">
             <Clock className="mr-2 h-4 w-4 text-gray-500" />
-            <span>{medication.frequency}</span>
+            <span>{med.frequency}</span>
           </div>
           
           <div className="flex items-center text-sm">
             <Calendar className="mr-2 h-4 w-4 text-gray-500" />
             <span>
-              {formatDate(medication.startDate)} - {formatDate(medication.endDate)}
+              {formatDate(med.startDate)} - {formatDate(med.endDate)}
             </span>
           </div>
           
@@ -142,17 +175,17 @@ export default function PatientMedications() {
               <AlertCircle className="mr-2 h-4 w-4 text-amber-500" />
               Instructions
             </div>
-            <p>{medication.instructions}</p>
+            <p>{med.instructions}</p>
           </div>
         </CardContent>
         <CardFooter className="flex justify-between pt-2">
           <div className="text-sm text-gray-500">
-            <span>Prescribed by: {medication.prescribedBy}</span>
+            <span>Prescribed by: {med.prescribedBy}</span>
           </div>
-          {medication.refillsRemaining > 0 && (
+          {med.refillsRemaining > 0 && (
             <Button size="sm" variant="outline" className="text-medical-primary">
               <RefreshCw className="mr-1 h-3 w-3" />
-              Request Refill ({medication.refillsRemaining} remaining)
+              Request Refill ({med.refillsRemaining} remaining)
             </Button>
           )}
         </CardFooter>

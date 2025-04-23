@@ -1,5 +1,5 @@
 
-import { User, Patient, Doctor, Admin, Appointment, Medication } from "@/types";
+import { User, Patient, Doctor, Admin, Appointment, Medication, ChatMessage } from "@/types";
 
 // Mock users for demo purposes
 export const mockUsers: User[] = [
@@ -35,12 +35,12 @@ export const mockPatients: Patient[] = [
     role: "patient",
     avatar: "/placeholder.svg",
     dateOfBirth: "1980-05-15",
-    phoneNumber: "555-123-4567",
+    phone: "555-123-4567",
     address: "123 Main St, Anytown, USA",
     emergencyContact: {
       name: "Jane Doe",
       relationship: "Spouse",
-      phoneNumber: "555-987-6543",
+      phone: "555-987-6543",
     },
     medicalHistory: [
       "Appendectomy (2010)",
@@ -56,6 +56,7 @@ export const mockPatients: Patient[] = [
         time: "10:00 AM",
         status: "scheduled",
         type: "consultation",
+        doctor: "Dr. Sarah Smith"
       },
     ],
     pastAppointments: [
@@ -68,6 +69,7 @@ export const mockPatients: Patient[] = [
         status: "completed",
         type: "follow-up",
         notes: "Patient recovering well from procedure. Continue current medication.",
+        doctor: "Dr. Sarah Smith"
       },
     ],
     medications: [
@@ -77,7 +79,10 @@ export const mockPatients: Patient[] = [
         dosage: "10mg",
         frequency: "Once daily",
         startDate: "2022-01-15",
+        endDate: "2025-01-15",
         prescribedBy: "Dr. Sarah Smith",
+        refillsRemaining: 3,
+        instructions: "Take in the morning with food."
       },
     ],
   },
@@ -88,7 +93,7 @@ export const mockPatients: Patient[] = [
     role: "patient",
     avatar: "/placeholder.svg",
     dateOfBirth: "1992-09-23",
-    phoneNumber: "555-234-5678",
+    phone: "555-234-5678",
     address: "456 Oak Ave, Somewhere, USA",
     medicalHistory: [
       "Asthma (diagnosed 2005)",
@@ -103,6 +108,7 @@ export const mockPatients: Patient[] = [
         time: "11:30 AM",
         status: "scheduled",
         type: "follow-up",
+        doctor: "Dr. Sarah Smith"
       },
     ],
     medications: [
@@ -112,7 +118,10 @@ export const mockPatients: Patient[] = [
         dosage: "90mcg",
         frequency: "As needed",
         startDate: "2005-06-10",
+        endDate: "2026-06-10",
         prescribedBy: "Dr. Sarah Smith",
+        refillsRemaining: 5,
+        instructions: "Use inhaler as needed for shortness of breath or wheezing. Two puffs every 4-6 hours as needed."
       },
     ],
   },
@@ -211,7 +220,7 @@ export const mockAppointments: Appointment[] = [
 ];
 
 // Mock chat messages for patient chat
-export const mockChatMessages: { [key: string]: any[] } = {
+export const mockChatMessages: { [key: string]: ChatMessage[] } = {
   "p1": [
     {
       id: "c1",
