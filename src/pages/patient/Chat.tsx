@@ -10,6 +10,33 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageSquare, Send } from "lucide-react";
 
+// Medical assistant response logic
+const generateMedicalAssistantResponse = (userMessage: string): string => {
+  const keywords = {
+    symptoms: ["pain", "fever", "headache", "cough", "feeling sick"],
+    medication: ["medicine", "prescription", "drug", "dosage"],
+    appointment: ["schedule", "book", "when", "time"],
+    general: ["help", "question", "advice"]
+  };
+
+  const normalizedMessage = userMessage.toLowerCase();
+
+  if (keywords.symptoms.some(keyword => normalizedMessage.includes(keyword))) {
+    return "For specific medical symptoms, it's best to consult directly with your healthcare provider. However, I can offer general wellness advice or help you understand when to seek medical attention.";
+  }
+
+  if (keywords.medication.some(keyword => normalizedMessage.includes(keyword))) {
+    return "Medication queries require professional medical advice. I recommend discussing specific medication concerns with your doctor who knows your full medical history.";
+  }
+
+  if (keywords.appointment.some(keyword => normalizedMessage.includes(keyword))) {
+    return "Would you like help navigating our appointment scheduling system? I can guide you to the right resources or connect you with our scheduling team.";
+  }
+
+  // Fallback for general queries
+  return "I'm an AI assistant designed to help guide you. While I can't provide medical diagnoses, I can help direct you to the right resources or provide general health information.";
+};
+
 export default function PatientChat() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -20,7 +47,14 @@ export default function PatientChat() {
   // Load mock chat history
   useEffect(() => {
     if (user) {
-      const userChat = mockChatMessages[user.id] || [];
+      const userChat = mockChatMessages[user.id] || [
+        {
+          id: 'initial-welcome',
+          sender: 'bot',
+          content: "Welcome to Surgical Harmony Connect's Medical Assistant. How can I help you today?",
+          timestamp: new Date().toISOString()
+        }
+      ];
       setMessages(userChat);
     }
   }, [user]);
@@ -45,12 +79,12 @@ export default function PatientChat() {
     setNewMessage("");
     setIsLoading(true);
 
-    // Simulate AI response after a delay
+    // Simulate AI response with more context-aware logic
     setTimeout(() => {
       const botResponse: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         sender: "bot",
-        content: "Thank you for your message. I'll analyze your question and provide assistance. For urgent matters, please contact your doctor directly.",
+        content: generateMedicalAssistantResponse(userMessage.content),
         timestamp: new Date().toISOString(),
       };
       
