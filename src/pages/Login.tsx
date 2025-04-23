@@ -25,15 +25,15 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-medical-primary mb-1">
-            Surgical Harmony Connect
+            Chlora
           </h1>
           <p className="text-gray-600">
-            Streamlined Surgical Practice Management
+            Streamlined Healthcare Management
           </p>
         </div>
         <LoginForm />
         <p className="text-center mt-6 text-sm text-gray-500">
-          © 2025 Surgical Harmony Connect. All rights reserved.
+          © 2025 Chlora. All rights reserved.
         </p>
       </div>
     </div>

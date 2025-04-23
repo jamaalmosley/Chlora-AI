@@ -27,10 +27,10 @@ const Index = () => {
       <section className="bg-gradient-to-br from-medical-light via-white to-medical-light py-20">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-medical-primary mb-4">
-            Surgical Harmony Connect
+            Chlora
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Streamlining surgical practice management with comprehensive patient and physician portals
+            Streamlining healthcare management with comprehensive patient and physician portals
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Button 
@@ -179,9 +179,9 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-lg font-bold mb-4">Surgical Harmony Connect</h3>
+              <h3 className="text-lg font-bold mb-4">Chlora</h3>
               <p className="text-gray-400">
-                Streamlining surgical practice management with comprehensive patient and physician portals.
+                Streamlining healthcare management with comprehensive patient and physician portals.
               </p>
             </div>
             
@@ -215,7 +215,7 @@ const Index = () => {
           
           <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
             <div className="text-gray-400 mb-4 md:mb-0">
-              © 2025 Surgical Harmony Connect. All rights reserved.
+              © 2025 Chlora. All rights reserved.
             </div>
             <div className="flex space-x-4">
               <a href="#" className="text-gray-400 hover:text-white">Terms</a>

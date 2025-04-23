@@ -46,7 +46,7 @@ export default function Navbar() {
             <Menu className="h-5 w-5" />
           </Button>
           <div className="text-xl font-bold text-medical-primary">
-            Surgical Harmony Connect
+            Chlora
           </div>
         </div>
 
