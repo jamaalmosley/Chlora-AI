@@ -18,6 +18,7 @@ import PatientChat from "./pages/patient/Chat";
 import PatientAppointments from "./pages/patient/Appointments";
 import PatientRecords from "./pages/patient/Records";
 import PatientMedications from "./pages/patient/Medications";
+import PatientProfile from "./pages/patient/Profile";
 
 // Doctor Pages
 import DoctorDashboard from "./pages/doctor/Dashboard";
@@ -108,6 +109,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['patient']}>
                     <PatientMedications />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/patient/profile" 
+                element={
+                  <ProtectedRoute allowedRoles={['patient']}>
+                    <PatientProfile />
                   </ProtectedRoute>
                 } 
               />
