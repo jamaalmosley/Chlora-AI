@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { UserRound, Mail, Phone, Award, Clipboard, MapPin, Users } from "lucide-react";
+import { UserRound, Mail, Phone, Award, Clipboard, MapPin, Users, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const DoctorProfile = () => {
@@ -104,29 +104,29 @@ const DoctorProfile = () => {
         <Card className="md:col-span-1">
           <CardContent className="pt-6 flex flex-col items-center">
             <Avatar className="h-24 w-24 mb-4">
-              <AvatarImage src={doctorData.avatar} alt={doctorData.name} />
+              <AvatarImage src={doctorData?.avatar} alt={doctorData?.name} />
               <AvatarFallback className="bg-medical-primary text-white text-xl">
-                {doctorData.name && getInitials(doctorData.name)}
+                {doctorData?.name && getInitials(doctorData.name)}
               </AvatarFallback>
             </Avatar>
-            <h2 className="text-2xl font-bold text-center">{doctorData.name}</h2>
+            <h2 className="text-2xl font-bold text-center">{doctorData?.name}</h2>
             <Badge className="bg-medical-light text-medical-primary mt-1">
-              {doctorData.specialty}
+              {doctorData?.specialty}
             </Badge>
-            <p className="text-gray-500 mt-2">License: {doctorData.licenseNumber}</p>
+            <p className="text-gray-500 mt-2">License: {doctorData?.licenseNumber}</p>
             
             <div className="w-full space-y-3 mt-6">
               <div className="flex items-center text-gray-700">
                 <Mail className="w-5 h-5 mr-3 text-gray-500" />
-                <span>{doctorData.email}</span>
+                <span>{doctorData?.email}</span>
               </div>
-              {doctorData.contactInfo?.phone && (
+              {doctorData?.contactInfo?.phone && (
                 <div className="flex items-center text-gray-700">
                   <Phone className="w-5 h-5 mr-3 text-gray-500" />
                   <span>{doctorData.contactInfo.phone}</span>
                 </div>
               )}
-              {doctorData.contactInfo?.address && (
+              {doctorData?.contactInfo?.address && (
                 <div className="flex items-center text-gray-700">
                   <MapPin className="w-5 h-5 mr-3 text-gray-500" />
                   <span>{doctorData.contactInfo.address}</span>
@@ -153,7 +153,7 @@ const DoctorProfile = () => {
             <CardContent>
               <div className="mb-4">
                 <h3 className="text-sm font-medium text-gray-500 mb-2">Education</h3>
-                {doctorData.education && doctorData.education.length > 0 ? (
+                {doctorData?.education && doctorData.education.length > 0 ? (
                   <ul className="list-disc pl-5 space-y-1">
                     {doctorData.education.map((edu, index) => (
                       <li key={index} className="text-gray-800">{edu}</li>
@@ -168,7 +168,7 @@ const DoctorProfile = () => {
               
               <div>
                 <h3 className="text-sm font-medium text-gray-500 mb-2">Certifications</h3>
-                {doctorData.certifications && doctorData.certifications.length > 0 ? (
+                {doctorData?.certifications && doctorData.certifications.length > 0 ? (
                   <ul className="list-disc pl-5 space-y-1">
                     {doctorData.certifications.map((cert, index) => (
                       <li key={index} className="text-gray-800">{cert}</li>
@@ -192,7 +192,7 @@ const DoctorProfile = () => {
             <CardContent>
               <div className="mb-4">
                 <h3 className="text-sm font-medium text-gray-500 mb-2">Working Hours</h3>
-                <p className="text-gray-800">{doctorData.workingHours || "Not specified"}</p>
+                <p className="text-gray-800">{doctorData?.workingHours || "Not specified"}</p>
               </div>
               
               <Separator className="my-4" />
