@@ -73,6 +73,13 @@ export interface Doctor {
     booked: boolean;
     appointmentId?: string;
   }>>;
+  education?: string[];
+  certifications?: string[];
+  workingHours?: string;
+  contactInfo?: {
+    phone: string;
+    address: string;
+  };
 }
 
 export interface Admin {

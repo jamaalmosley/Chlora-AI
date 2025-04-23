@@ -23,6 +23,9 @@ import PatientProfile from "./pages/patient/Profile";
 // Doctor Pages
 import DoctorDashboard from "./pages/doctor/Dashboard";
 import DoctorPatients from "./pages/doctor/Patients";
+import DoctorSchedule from "./pages/doctor/Schedule";
+import DoctorSurgeries from "./pages/doctor/Surgeries";
+import DoctorProfile from "./pages/doctor/Profile";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -135,6 +138,30 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['doctor']}>
                     <DoctorPatients />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/doctor/schedule" 
+                element={
+                  <ProtectedRoute allowedRoles={['doctor']}>
+                    <DoctorSchedule />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/doctor/surgeries" 
+                element={
+                  <ProtectedRoute allowedRoles={['doctor']}>
+                    <DoctorSurgeries />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/doctor/profile" 
+                element={
+                  <ProtectedRoute allowedRoles={['doctor']}>
+                    <DoctorProfile />
                   </ProtectedRoute>
                 } 
               />
