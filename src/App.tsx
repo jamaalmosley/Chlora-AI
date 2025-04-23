@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,6 +16,8 @@ import NotFound from "./pages/NotFound";
 import PatientDashboard from "./pages/patient/Dashboard";
 import PatientChat from "./pages/patient/Chat";
 import PatientAppointments from "./pages/patient/Appointments";
+import PatientRecords from "./pages/patient/Records";
+import PatientMedications from "./pages/patient/Medications";
 
 // Doctor Pages
 import DoctorDashboard from "./pages/doctor/Dashboard";
@@ -89,6 +92,22 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['patient']}>
                     <PatientAppointments />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/patient/records" 
+                element={
+                  <ProtectedRoute allowedRoles={['patient']}>
+                    <PatientRecords />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/patient/medications" 
+                element={
+                  <ProtectedRoute allowedRoles={['patient']}>
+                    <PatientMedications />
                   </ProtectedRoute>
                 } 
               />

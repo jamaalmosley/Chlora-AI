@@ -1,53 +1,9 @@
-
-export type UserRole = 'patient' | 'doctor' | 'admin';
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  avatar?: string;
-}
-
-export interface Patient extends User {
-  role: 'patient';
-  dateOfBirth: string;
-  phoneNumber: string;
-  address: string;
-  emergencyContact?: {
-    name: string;
-    relationship: string;
-    phoneNumber: string;
-  };
-  medicalHistory?: string[];
-  upcomingAppointments?: Appointment[];
-  pastAppointments?: Appointment[];
-  medications?: Medication[];
-}
-
-export interface Doctor extends User {
-  role: 'doctor';
-  specialty: string;
-  licenseNumber: string;
-  patients?: string[];
-  schedule?: {
-    [key: string]: TimeSlot[];
-  };
-}
-
-export interface Admin extends User {
-  role: 'admin';
-  department: string;
-}
-
 export interface Appointment {
   id: string;
-  patientId: string;
-  doctorId: string;
   date: string;
   time: string;
-  status: 'scheduled' | 'completed' | 'cancelled';
-  type: 'consultation' | 'surgery' | 'follow-up';
+  type: string;
+  doctor: string;
   notes?: string;
 }
 
@@ -57,21 +13,30 @@ export interface Medication {
   dosage: string;
   frequency: string;
   startDate: string;
-  endDate?: string;
+  endDate: string;
   prescribedBy: string;
-  notes?: string;
+  refillsRemaining: number;
+  instructions: string;
 }
 
-export interface TimeSlot {
-  start: string;
-  end: string;
-  booked: boolean;
-  appointmentId?: string;
-}
-
-export interface ChatMessage {
+export interface Patient {
   id: string;
-  sender: 'user' | 'bot' | 'doctor';
-  content: string;
-  timestamp: string;
+  name: string;
+  email: string;
+  role: string;
+  dateOfBirth?: string;
+  address?: string;
+  phone?: string;
+  insuranceProvider?: string;
+  insuranceNumber?: string;
+  emergencyContact?: {
+    name: string;
+    relationship: string;
+    phone: string;
+  };
+  medicalHistory?: string[];
+  allergies?: string[];
+  medications?: Medication[];
+  upcomingAppointments?: Appointment[];
+  pastAppointments?: Appointment[];
 }
