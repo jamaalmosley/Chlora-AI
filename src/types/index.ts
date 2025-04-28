@@ -46,6 +46,7 @@ export interface Patient {
   medications?: Medication[];
   upcomingAppointments?: Appointment[];
   pastAppointments?: Appointment[];
+  status?: string;
 }
 
 export interface User {
@@ -80,6 +81,7 @@ export interface Doctor {
     phone: string;
     address: string;
   };
+  status?: string;
 }
 
 export interface Admin {

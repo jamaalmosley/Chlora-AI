@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   FileText,
   Clock,
+  WalletCards,
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -44,6 +45,11 @@ export default function Sidebar() {
       name: "Medications",
       path: "/patient/medications",
       icon: <ClipboardList className="h-5 w-5" />,
+    },
+    {
+      name: "Payments",
+      path: "/patient/payments",
+      icon: <WalletCards className="h-5 w-5" />,
     },
     {
       name: "Chat",
