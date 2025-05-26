@@ -1,244 +1,308 @@
 
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { mockDoctors, mockPatients } from "@/data/mockData";
-import { Doctor } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, Calendar, Clock, FileText, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Calendar, Clock, User, Users, FileText, Activity } from "lucide-react";
+
+interface Appointment {
+  id: string;
+  appointment_date: string;
+  appointment_time: string;
+  type: string;
+  status: string;
+  patient: {
+    user: {
+      first_name: string;
+      last_name: string;
+    };
+  };
+}
+
+interface Patient {
+  id: string;
+  user: {
+    first_name: string;
+    last_name: string;
+  };
+}
 
 export default function DoctorDashboard() {
-  const { user } = useAuth();
-  const doctor = mockDoctors.find(d => d.id === user?.id) as Doctor | undefined;
+  const { user, profile } = useAuth();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctorData, setDoctorData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (!doctor) {
+  useEffect(() => {
+    const loadDoctorData = async () => {
+      if (!user) return;
+      
+      setIsLoading(true);
+      
+      try {
+        // Fetch doctor data
+        const { data: doctor, error: doctorError } = await supabase
+          .from('doctors')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (doctorError && doctorError.code !== 'PGRST116') {
+          throw doctorError;
+        }
+        
+        setDoctorData(doctor);
+
+        if (doctor) {
+          // Fetch today's appointments
+          const today = new Date().toISOString().split('T')[0];
+          const { data: todayAppts, error: todayError } = await supabase
+            .from('appointments')
+            .select(`
+              *,
+              patient:patients(
+                user:profiles(first_name, last_name)
+              )
+            `)
+            .eq('doctor_id', doctor.id)
+            .eq('appointment_date', today)
+            .order('appointment_time', { ascending: true });
+
+          if (todayError) throw todayError;
+          setTodayAppointments(todayAppts || []);
+
+          // Fetch upcoming appointments
+          const { data: upcomingAppts, error: upcomingError } = await supabase
+            .from('appointments')
+            .select(`
+              *,
+              patient:patients(
+                user:profiles(first_name, last_name)
+              )
+            `)
+            .eq('doctor_id', doctor.id)
+            .gte('appointment_date', new Date().toISOString().split('T')[0])
+            .order('appointment_date', { ascending: true })
+            .limit(5);
+
+          if (upcomingError) throw upcomingError;
+          setAppointments(upcomingAppts || []);
+
+          // Fetch patient list
+          const { data: patientsData, error: patientsError } = await supabase
+            .from('patients')
+            .select(`
+              id,
+              user:profiles(first_name, last_name)
+            `)
+            .in('id', (upcomingAppts || []).map(apt => apt.patient_id));
+
+          if (patientsError) throw patientsError;
+          setPatients(patientsData || []);
+        }
+      } catch (error) {
+        console.error('Error loading doctor data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    if (user) {
+      loadDoctorData();
+    }
+  }, [user]);
+
+  if (isLoading) {
     return (
-      <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">Doctor Dashboard</h1>
-        <p>Loading doctor data...</p>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-medical-primary"></div>
       </div>
     );
   }
 
-  const todayDate = new Date().toISOString().split('T')[0];
-  const todaySchedule = doctor.schedule?.[todayDate] || [];
-  const upcomingAppointments = todaySchedule.filter(slot => slot.booked).length;
-  
-  const patientList = doctor.patients
-    ? mockPatients.filter(p => doctor.patients?.includes(p.id))
-    : [];
+  const userName = profile?.first_name || "Doctor";
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto py-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Welcome, {doctor.name}</h1>
-        <p className="text-gray-600">
-          Here's your schedule and patient overview
-        </p>
+        <h1 className="text-3xl font-bold text-gray-900">Welcome back, Dr. {userName}!</h1>
+        <p className="text-gray-600 mt-2">Here's your practice overview for today.</p>
+        {doctorData && (
+          <p className="text-sm text-gray-500">Specialty: {doctorData.specialty}</p>
+        )}
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center">
-              <Calendar className="h-5 w-5 mr-2 text-medical-primary" />
-              Today's Schedule
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Today's Appointments</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-medical-primary">
-              {upcomingAppointments}
-            </div>
-            <p className="text-sm text-gray-500">Appointments scheduled</p>
-            <div className="mt-3">
-              <Link to="/doctor/schedule">
-                <Button size="sm" className="w-full bg-medical-primary hover:bg-medical-dark">
-                  View Schedule
-                </Button>
-              </Link>
-            </div>
+            <div className="text-2xl font-bold">{todayAppointments.length}</div>
+            <p className="text-xs text-muted-foreground">Scheduled for today</p>
           </CardContent>
         </Card>
-        
+
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center">
-              <Users className="h-5 w-5 mr-2 text-medical-primary" />
-              My Patients
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-medical-primary">
-              {patientList.length}
-            </div>
-            <p className="text-sm text-gray-500">Active patients</p>
-            <div className="mt-3">
-              <Link to="/doctor/patients">
-                <Button size="sm" className="w-full bg-medical-primary hover:bg-medical-dark">
-                  View Patients
-                </Button>
-              </Link>
-            </div>
+            <div className="text-2xl font-bold">{patients.length}</div>
+            <p className="text-xs text-muted-foreground">Under your care</p>
           </CardContent>
         </Card>
-        
+
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center">
-              <Activity className="h-5 w-5 mr-2 text-medical-primary" />
-              Surgeries
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Upcoming Appointments</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-medical-primary">
-              2
-            </div>
-            <p className="text-sm text-gray-500">Upcoming surgeries</p>
-            <div className="mt-3">
-              <Link to="/doctor/surgeries">
-                <Button size="sm" className="w-full bg-medical-primary hover:bg-medical-dark">
-                  View Surgeries
-                </Button>
-              </Link>
-            </div>
+            <div className="text-2xl font-bold">{appointments.length}</div>
+            <p className="text-xs text-muted-foreground">Next 7 days</p>
           </CardContent>
         </Card>
-        
+
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center">
-              <FileText className="h-5 w-5 mr-2 text-medical-primary" />
-              Reports
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Status</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-medical-primary">
-              5
-            </div>
-            <p className="text-sm text-gray-500">Pending reviews</p>
-            <div className="mt-3">
-              <Button size="sm" className="w-full bg-medical-primary hover:bg-medical-dark">
-                View Reports
-              </Button>
-            </div>
+            <div className="text-2xl font-bold text-green-600">Active</div>
+            <p className="text-xs text-muted-foreground">{doctorData?.status || 'Active'}</p>
           </CardContent>
         </Card>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="md:col-span-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Today's Appointments</CardTitle>
-              <CardDescription>
-                Your schedule for {new Date().toLocaleDateString()}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {todaySchedule.length > 0 ? (
-                <div className="space-y-3">
-                  {todaySchedule.map((slot, index) => (
-                    <div 
-                      key={index} 
-                      className={`flex items-center p-3 rounded-lg border ${
-                        slot.booked 
-                          ? "border-medical-primary bg-medical-light" 
-                          : "border-gray-200 bg-white"
-                      }`}
-                    >
-                      <div className="mr-3">
-                        <Clock className={`h-5 w-5 ${
-                          slot.booked ? "text-medical-primary" : "text-gray-400"
-                        }`} />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-medium">
-                          {slot.start} - {slot.end}
-                        </h3>
-                        {slot.booked ? (
-                          <div className="text-sm text-gray-600">
-                            Appointment with John Doe
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-400">
-                            Available
-                          </div>
-                        )}
-                      </div>
-                      {slot.booked && (
-                        <Button size="sm" variant="outline">
-                          View Details
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 italic">No appointments scheduled for today</p>
-              )}
-              
-              <div className="mt-4">
-                <Link to="/doctor/schedule">
-                  <Button variant="outline" className="w-full">
-                    View Full Schedule
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <div className="md:col-span-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center">
-                <User className="h-5 w-5 mr-2 text-medical-primary" />
-                Recent Patients
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {patientList.slice(0, 3).map(patient => (
-                  <div key={patient.id} className="flex items-center p-2 rounded-lg hover:bg-gray-50">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden mr-3">
-                      <img src="/placeholder.svg" alt={patient.name} />
-                    </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Today's Schedule */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Today's Schedule</CardTitle>
+            <CardDescription>Your appointments for today</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {todayAppointments.length > 0 ? (
+              <div className="space-y-4">
+                {todayAppointments.map((appointment) => (
+                  <div key={appointment.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
-                      <h3 className="font-medium">{patient.name}</h3>
-                      <p className="text-xs text-gray-500">Last visit: 3 days ago</p>
+                      <p className="font-medium">{appointment.appointment_time}</p>
+                      <p className="text-sm text-gray-600">
+                        {appointment.patient?.user?.first_name} {appointment.patient?.user?.last_name}
+                      </p>
+                      <p className="text-sm text-gray-500">{appointment.type}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        appointment.status === 'scheduled' ? 'bg-blue-100 text-blue-800' : 
+                        appointment.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {appointment.status}
+                      </span>
                     </div>
                   </div>
                 ))}
-                
-                <Link to="/doctor/patients">
-                  <Button variant="ghost" className="w-full mt-2">
-                    View All Patients
-                  </Button>
+                <Link to="/doctor/schedule">
+                  <Button variant="outline" className="w-full">View Full Schedule</Button>
                 </Link>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="text-xl">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Button className="w-full bg-medical-primary" size="sm">
-                  Schedule Appointment
-                </Button>
-                <Button className="w-full bg-medical-secondary" size="sm">
-                  Create New Patient Record
-                </Button>
-                <Button variant="outline" className="w-full" size="sm">
-                  Generate Reports
-                </Button>
+            ) : (
+              <div className="text-center py-6">
+                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No appointments today</p>
+                <Link to="/doctor/schedule">
+                  <Button variant="outline" className="mt-2">View Schedule</Button>
+                </Link>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Patients */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Patients</CardTitle>
+            <CardDescription>Patients with upcoming appointments</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {patients.length > 0 ? (
+              <div className="space-y-4">
+                {patients.slice(0, 5).map((patient) => (
+                  <div key={patient.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <p className="font-medium">
+                        {patient.user?.first_name} {patient.user?.last_name}
+                      </p>
+                      <p className="text-sm text-gray-500">Patient ID: {patient.id.slice(0, 8)}</p>
+                    </div>
+                    <div className="text-right">
+                      <Button variant="ghost" size="sm">View</Button>
+                    </div>
+                  </div>
+                ))}
+                <Link to="/doctor/patients">
+                  <Button variant="outline" className="w-full">View All Patients</Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No patients found</p>
+                <Link to="/doctor/patients">
+                  <Button variant="outline" className="mt-2">View Patients</Button>
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Quick Actions */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Common tasks and features</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Link to="/doctor/schedule">
+              <Button variant="outline" className="w-full h-20 flex flex-col">
+                <Calendar className="h-6 w-6 mb-2" />
+                <span>View Schedule</span>
+              </Button>
+            </Link>
+            <Link to="/doctor/patients">
+              <Button variant="outline" className="w-full h-20 flex flex-col">
+                <Users className="h-6 w-6 mb-2" />
+                <span>Patient List</span>
+              </Button>
+            </Link>
+            <Link to="/doctor/surgeries">
+              <Button variant="outline" className="w-full h-20 flex flex-col">
+                <FileText className="h-6 w-6 mb-2" />
+                <span>Surgeries</span>
+              </Button>
+            </Link>
+            <Link to="/doctor/profile">
+              <Button variant="outline" className="w-full h-20 flex flex-col">
+                <Clock className="h-6 w-6 mb-2" />
+                <span>Update Profile</span>
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
