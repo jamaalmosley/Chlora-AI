@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 export default function Sidebar() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const location = useLocation();
 
   if (!user) return null;
@@ -119,22 +119,33 @@ export default function Sidebar() {
     },
   ];
 
+  // Get the user role from profile, fallback to checking user.role if available
+  const userRole = profile?.role || user?.user_metadata?.role || "patient";
+  
   const links = {
     patient: patientLinks,
     doctor: doctorLinks,
     admin: adminLinks,
-  }[user.role];
+  }[userRole] || patientLinks; // Default to patient links if role is unclear
+
+  const getPortalTitle = () => {
+    switch (userRole) {
+      case "doctor":
+        return "Doctor Portal";
+      case "admin":
+        return "Admin Portal";
+      case "patient":
+      default:
+        return "Patient Portal";
+    }
+  };
 
   return (
     <div className="hidden md:block w-64 bg-sidebar text-sidebar-foreground border-r border-gray-200">
       <div className="h-full py-6 flex flex-col">
         <div className="px-4 mb-6">
           <h2 className="text-lg font-semibold text-sidebar-primary">
-            {user.role === "patient"
-              ? "Patient Portal"
-              : user.role === "doctor"
-              ? "Doctor Portal"
-              : "Admin Portal"}
+            {getPortalTitle()}
           </h2>
         </div>
         <div className="space-y-1 px-3 flex-1">
@@ -155,7 +166,7 @@ export default function Sidebar() {
             </Link>
           ))}
         </div>
-        {user.role === "patient" && (
+        {userRole === "patient" && (
           <div className="p-4 mt-auto">
             <div className="rounded-lg bg-medical-light p-3">
               <h3 className="font-medium text-medical-primary mb-1">Need help?</h3>
