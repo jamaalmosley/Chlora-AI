@@ -13,13 +13,11 @@ interface DatabaseAppointment {
   appointment_time: string;
   type: string;
   status: string;
-  doctor: {
-    specialty: string;
-    user: {
-      first_name: string;
-      last_name: string;
-    };
-  };
+  doctor_id: string;
+  patient_id: string;
+  notes?: string;
+  doctor_name?: string;
+  doctor_specialty?: string;
 }
 
 interface Medication {
@@ -61,13 +59,7 @@ export default function PatientDashboard() {
           // Fetch upcoming appointments
           const { data: appointmentsData, error: appointmentsError } = await supabase
             .from('appointments')
-            .select(`
-              *,
-              doctor:doctors(
-                specialty,
-                user:profiles(first_name, last_name)
-              )
-            `)
+            .select('*')
             .eq('patient_id', patient.id)
             .gte('appointment_date', new Date().toISOString().split('T')[0])
             .order('appointment_date', { ascending: true })
@@ -75,12 +67,40 @@ export default function PatientDashboard() {
 
           if (appointmentsError) throw appointmentsError;
           
-          // Filter out appointments with invalid doctor data
-          const validAppointments = (appointmentsData || []).filter(apt => 
-            apt.doctor && apt.doctor.user && apt.doctor.user.first_name
+          // Get doctor details for each appointment
+          const appointmentsWithDoctors = await Promise.all(
+            (appointmentsData || []).map(async (apt) => {
+              const { data: doctor } = await supabase
+                .from('doctors')
+                .select('specialty, user_id')
+                .eq('id', apt.doctor_id)
+                .single();
+
+              let doctorName = '';
+              let doctorSpecialty = '';
+
+              if (doctor) {
+                const { data: profile } = await supabase
+                  .from('profiles')
+                  .select('first_name, last_name')
+                  .eq('id', doctor.user_id)
+                  .single();
+
+                if (profile) {
+                  doctorName = `${profile.first_name} ${profile.last_name}`;
+                }
+                doctorSpecialty = doctor.specialty;
+              }
+
+              return {
+                ...apt,
+                doctor_name: doctorName,
+                doctor_specialty: doctorSpecialty
+              };
+            })
           );
           
-          setAppointments(validAppointments);
+          setAppointments(appointmentsWithDoctors);
 
           // Fetch active medications
           const { data: medicationsData, error: medicationsError } = await supabase
@@ -184,7 +204,7 @@ export default function PatientDashboard() {
                     <div>
                       <p className="font-medium">{appointment.type}</p>
                       <p className="text-sm text-gray-600">
-                        Dr. {appointment.doctor?.user?.first_name} {appointment.doctor?.user?.last_name}
+                        Dr. {appointment.doctor_name || 'Unknown'}
                       </p>
                       <p className="text-sm text-gray-500">
                         {new Date(appointment.appointment_date).toLocaleDateString()} at {appointment.appointment_time}
