@@ -13,7 +13,7 @@ import {
 import { LogOut, Settings, User } from "lucide-react";
 
 export default function Navbar() {
-  const { user, signOut, isAuthenticated } = useAuth();
+  const { user, profile, signOut, isAuthenticated } = useAuth();
 
   const handleSignOut = async () => {
     try {
@@ -25,8 +25,8 @@ export default function Navbar() {
 
   if (!isAuthenticated) return null;
 
-  const userRole = user?.user_metadata?.role || "user";
-  const userName = user?.user_metadata?.first_name || user?.email?.split("@")[0] || "User";
+  const userRole = profile?.role || "user";
+  const userName = profile?.first_name || user?.email?.split("@")[0] || "User";
 
   return (
     <nav className="bg-white border-b border-gray-200 px-4 py-2">
@@ -40,7 +40,7 @@ export default function Navbar() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.user_metadata?.avatar_url} alt={userName} />
+                  <AvatarImage src={profile?.avatar_url || ""} alt={userName} />
                   <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
               </Button>

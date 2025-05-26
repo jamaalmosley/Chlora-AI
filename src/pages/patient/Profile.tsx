@@ -1,8 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { mockPatients } from "@/data/mockData";
-import { Patient } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -10,19 +9,49 @@ import { Button } from "@/components/ui/button";
 import { UserRound, Mail, Phone, MapPin, AlertCircle, Calendar } from "lucide-react";
 import { format } from "date-fns";
 
+interface PatientData {
+  id: string;
+  date_of_birth: string | null;
+  address: string | null;
+  insurance_provider: string | null;
+  insurance_number: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_relationship: string | null;
+  emergency_contact_phone: string | null;
+  medical_history: string[] | null;
+  allergies: string[] | null;
+  status: string;
+}
+
 const PatientProfile = () => {
-  const { user } = useAuth();
-  const [patientData, setPatientData] = useState<Patient | null>(null);
+  const { user, profile } = useAuth();
+  const [patientData, setPatientData] = useState<PatientData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      // Find patient data from mock data
-      const patient = mockPatients.find(p => p.id === user.id);
-      if (patient) {
-        setPatientData(patient);
+    const loadPatientData = async () => {
+      if (!user) return;
+      
+      setIsLoading(true);
+      
+      try {
+        const { data, error } = await supabase
+          .from('patients')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) throw error;
+        setPatientData(data);
+      } catch (error) {
+        console.error('Error loading patient data:', error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
+    };
+    
+    if (user) {
+      loadPatientData();
     }
   }, [user]);
 
@@ -34,7 +63,7 @@ const PatientProfile = () => {
     );
   }
 
-  if (!patientData) {
+  if (!patientData || !profile) {
     return (
       <div className="text-center py-10">
         <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
@@ -44,15 +73,11 @@ const PatientProfile = () => {
     );
   }
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
+  const getInitials = (firstName: string | null, lastName: string | null) => {
+    return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
   };
 
-  const formatDate = (dateString: string | undefined) => {
+  const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
     try {
       return format(new Date(dateString), "MMMM d, yyyy");
@@ -60,6 +85,8 @@ const PatientProfile = () => {
       return dateString;
     }
   };
+
+  const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
 
   return (
     <div className="container max-w-5xl py-6">
@@ -70,23 +97,23 @@ const PatientProfile = () => {
         <Card className="md:col-span-1">
           <CardContent className="pt-6 flex flex-col items-center">
             <Avatar className="h-24 w-24 mb-4">
-              <AvatarImage src={patientData.avatar} alt={patientData.name} />
+              <AvatarImage src={profile.avatar_url || ""} alt={fullName} />
               <AvatarFallback className="bg-medical-primary text-white text-xl">
-                {getInitials(patientData.name)}
+                {getInitials(profile.first_name, profile.last_name)}
               </AvatarFallback>
             </Avatar>
-            <h2 className="text-2xl font-bold text-center">{patientData.name}</h2>
+            <h2 className="text-2xl font-bold text-center">{fullName}</h2>
             <p className="text-gray-500 mb-4">Patient ID: {patientData.id}</p>
             
             <div className="w-full space-y-3 mt-4">
               <div className="flex items-center text-gray-700">
                 <Mail className="w-5 h-5 mr-3 text-gray-500" />
-                <span>{patientData.email}</span>
+                <span>{user?.email}</span>
               </div>
-              {patientData.phone && (
+              {profile.phone && (
                 <div className="flex items-center text-gray-700">
                   <Phone className="w-5 h-5 mr-3 text-gray-500" />
-                  <span>{patientData.phone || patientData.phoneNumber}</span>
+                  <span>{profile.phone}</span>
                 </div>
               )}
               {patientData.address && (
@@ -95,10 +122,10 @@ const PatientProfile = () => {
                   <span>{patientData.address}</span>
                 </div>
               )}
-              {patientData.dateOfBirth && (
+              {patientData.date_of_birth && (
                 <div className="flex items-center text-gray-700">
                   <Calendar className="w-5 h-5 mr-3 text-gray-500" />
-                  <span>Born {formatDate(patientData.dateOfBirth)}</span>
+                  <span>Born {formatDate(patientData.date_of_birth)}</span>
                 </div>
               )}
             </div>
@@ -124,11 +151,11 @@ const PatientProfile = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Provider</p>
-                    <p>{patientData.insuranceProvider || "Not provided"}</p>
+                    <p>{patientData.insurance_provider || "Not provided"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Policy Number</p>
-                    <p>{patientData.insuranceNumber || "Not provided"}</p>
+                    <p>{patientData.insurance_number || "Not provided"}</p>
                   </div>
                 </div>
               </div>
@@ -154,9 +181,9 @@ const PatientProfile = () => {
               {/* Medical History */}
               <div>
                 <h3 className="text-sm font-medium text-gray-500 mb-2">Medical History</h3>
-                {patientData.medicalHistory && patientData.medicalHistory.length > 0 ? (
+                {patientData.medical_history && patientData.medical_history.length > 0 ? (
                   <ul className="list-disc pl-5 space-y-1">
-                    {patientData.medicalHistory.map((item, index) => (
+                    {patientData.medical_history.map((item, index) => (
                       <li key={index} className="text-gray-800">{item}</li>
                     ))}
                   </ul>
@@ -174,19 +201,19 @@ const PatientProfile = () => {
               <CardDescription>Person to contact in case of emergency</CardDescription>
             </CardHeader>
             <CardContent>
-              {patientData.emergencyContact ? (
+              {patientData.emergency_contact_name ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Name</p>
-                    <p className="font-medium">{patientData.emergencyContact.name}</p>
+                    <p className="font-medium">{patientData.emergency_contact_name}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Relationship</p>
-                    <p>{patientData.emergencyContact.relationship}</p>
+                    <p>{patientData.emergency_contact_relationship}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Phone</p>
-                    <p>{patientData.emergencyContact.phone || patientData.emergencyContact.phoneNumber}</p>
+                    <p>{patientData.emergency_contact_phone}</p>
                   </div>
                 </div>
               ) : (

@@ -5,12 +5,12 @@ import { LoginForm } from "@/components/Auth/LoginForm";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Login() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, profile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      const userRole = user.user_metadata?.role || "patient";
+    if (isAuthenticated && profile) {
+      const userRole = profile.role;
       if (userRole === "patient") {
         navigate("/patient");
       } else if (userRole === "doctor") {
@@ -19,7 +19,7 @@ export default function Login() {
         navigate("/admin");
       }
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, profile, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">

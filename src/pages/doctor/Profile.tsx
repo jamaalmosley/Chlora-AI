@@ -1,53 +1,50 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Doctor } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { UserRound, Mail, Phone, Award, Clipboard, MapPin, Users, Clock } from "lucide-react";
+import { Mail, Phone, Award, Clipboard, MapPin, Users, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+interface DoctorData {
+  id: string;
+  specialty: string;
+  license_number: string;
+  education: string[] | null;
+  certifications: string[] | null;
+  working_hours: string | null;
+  contact_address: string | null;
+  status: string;
+}
+
 const DoctorProfile = () => {
-  const { user } = useAuth();
-  const [doctorData, setDoctorData] = useState<Partial<Doctor> | null>(null);
+  const { user, profile } = useAuth();
+  const [doctorData, setDoctorData] = useState<DoctorData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading doctor data from an API
-    const loadDoctorData = () => {
+    const loadDoctorData = async () => {
+      if (!user) return;
+      
       setIsLoading(true);
       
-      // Mock data - in a real app, this would fetch from an API
-      setTimeout(() => {
-        const mockDoctor: Partial<Doctor> = {
-          id: user?.id || "d1",
-          name: user?.name || "Dr. Alexander Mitchell",
-          email: user?.email || "alex.mitchell@chlora.com",
-          role: "doctor",
-          avatar: user?.avatar,
-          specialty: "General Surgery",
-          licenseNumber: "MD12345678",
-          education: [
-            "Harvard Medical School, M.D.",
-            "Johns Hopkins University, Residency in General Surgery",
-            "Mayo Clinic, Fellowship in Surgical Oncology"
-          ],
-          certifications: [
-            "American Board of Surgery",
-            "Fellow of the American College of Surgeons (FACS)"
-          ],
-          workingHours: "Monday to Friday, 8:00 AM - 5:00 PM",
-          contactInfo: {
-            phone: "+1 (555) 123-4567",
-            address: "Chlora Medical Center, 123 Health Avenue, Suite 450"
-          }
-        };
+      try {
+        const { data, error } = await supabase
+          .from('doctors')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
         
-        setDoctorData(mockDoctor);
+        if (error) throw error;
+        setDoctorData(data);
+      } catch (error) {
+        console.error('Error loading doctor data:', error);
+      } finally {
         setIsLoading(false);
-      }, 800);
+      }
     };
     
     if (user) {
@@ -63,7 +60,7 @@ const DoctorProfile = () => {
     );
   }
 
-  if (!doctorData) {
+  if (!doctorData || !profile) {
     return (
       <div className="text-center py-10">
         <div className="w-12 h-12 text-red-500 mx-auto mb-4">
@@ -87,13 +84,11 @@ const DoctorProfile = () => {
     );
   }
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
+  const getInitials = (firstName: string | null, lastName: string | null) => {
+    return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
   };
+
+  const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
 
   return (
     <div className="container max-w-5xl py-6">
@@ -104,32 +99,32 @@ const DoctorProfile = () => {
         <Card className="md:col-span-1">
           <CardContent className="pt-6 flex flex-col items-center">
             <Avatar className="h-24 w-24 mb-4">
-              <AvatarImage src={doctorData?.avatar} alt={doctorData?.name} />
+              <AvatarImage src={profile.avatar_url || ""} alt={fullName} />
               <AvatarFallback className="bg-medical-primary text-white text-xl">
-                {doctorData?.name && getInitials(doctorData.name)}
+                {getInitials(profile.first_name, profile.last_name)}
               </AvatarFallback>
             </Avatar>
-            <h2 className="text-2xl font-bold text-center">{doctorData?.name}</h2>
+            <h2 className="text-2xl font-bold text-center">{fullName}</h2>
             <Badge className="bg-medical-light text-medical-primary mt-1">
-              {doctorData?.specialty}
+              {doctorData.specialty}
             </Badge>
-            <p className="text-gray-500 mt-2">License: {doctorData?.licenseNumber}</p>
+            <p className="text-gray-500 mt-2">License: {doctorData.license_number}</p>
             
             <div className="w-full space-y-3 mt-6">
               <div className="flex items-center text-gray-700">
                 <Mail className="w-5 h-5 mr-3 text-gray-500" />
-                <span>{doctorData?.email}</span>
+                <span>{user?.email}</span>
               </div>
-              {doctorData?.contactInfo?.phone && (
+              {profile.phone && (
                 <div className="flex items-center text-gray-700">
                   <Phone className="w-5 h-5 mr-3 text-gray-500" />
-                  <span>{doctorData.contactInfo.phone}</span>
+                  <span>{profile.phone}</span>
                 </div>
               )}
-              {doctorData?.contactInfo?.address && (
+              {doctorData.contact_address && (
                 <div className="flex items-center text-gray-700">
                   <MapPin className="w-5 h-5 mr-3 text-gray-500" />
-                  <span>{doctorData.contactInfo.address}</span>
+                  <span>{doctorData.contact_address}</span>
                 </div>
               )}
             </div>
@@ -153,7 +148,7 @@ const DoctorProfile = () => {
             <CardContent>
               <div className="mb-4">
                 <h3 className="text-sm font-medium text-gray-500 mb-2">Education</h3>
-                {doctorData?.education && doctorData.education.length > 0 ? (
+                {doctorData.education && doctorData.education.length > 0 ? (
                   <ul className="list-disc pl-5 space-y-1">
                     {doctorData.education.map((edu, index) => (
                       <li key={index} className="text-gray-800">{edu}</li>
@@ -168,7 +163,7 @@ const DoctorProfile = () => {
               
               <div>
                 <h3 className="text-sm font-medium text-gray-500 mb-2">Certifications</h3>
-                {doctorData?.certifications && doctorData.certifications.length > 0 ? (
+                {doctorData.certifications && doctorData.certifications.length > 0 ? (
                   <ul className="list-disc pl-5 space-y-1">
                     {doctorData.certifications.map((cert, index) => (
                       <li key={index} className="text-gray-800">{cert}</li>
@@ -192,7 +187,7 @@ const DoctorProfile = () => {
             <CardContent>
               <div className="mb-4">
                 <h3 className="text-sm font-medium text-gray-500 mb-2">Working Hours</h3>
-                <p className="text-gray-800">{doctorData?.workingHours || "Not specified"}</p>
+                <p className="text-gray-800">{doctorData.working_hours || "Not specified"}</p>
               </div>
               
               <Separator className="my-4" />

@@ -45,19 +45,19 @@ const ProtectedRoute = ({
   children: React.ReactNode; 
   allowedRoles?: string[] 
 }) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, profile } = useAuth();
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
   
-  if (allowedRoles.length > 0 && user && !allowedRoles.includes(user.role)) {
+  if (allowedRoles.length > 0 && profile && !allowedRoles.includes(profile.role)) {
     // Redirect based on role if trying to access unauthorized content
-    if (user.role === 'patient') {
+    if (profile.role === 'patient') {
       return <Navigate to="/patient" replace />;
-    } else if (user.role === 'doctor') {
+    } else if (profile.role === 'doctor') {
       return <Navigate to="/doctor" replace />;
-    } else if (user.role === 'admin') {
+    } else if (profile.role === 'admin') {
       return <Navigate to="/admin" replace />;
     }
     return <Navigate to="/" replace />;
