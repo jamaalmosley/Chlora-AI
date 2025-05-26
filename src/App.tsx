@@ -66,166 +66,173 @@ const ProtectedRoute = ({
   return <>{children}</>;
 };
 
+// App content component that uses auth context
+const AppContent = () => {
+  return (
+    <BrowserRouter>
+      <MainLayout>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<Index />} />
+          <Route path="/login" element={<Login />} />
+          
+          {/* Patient routes */}
+          <Route 
+            path="/patient" 
+            element={
+              <ProtectedRoute allowedRoles={['patient']}>
+                <PatientDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/patient/chat" 
+            element={
+              <ProtectedRoute allowedRoles={['patient']}>
+                <PatientChat />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/patient/appointments" 
+            element={
+              <ProtectedRoute allowedRoles={['patient']}>
+                <PatientAppointments />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/patient/records" 
+            element={
+              <ProtectedRoute allowedRoles={['patient']}>
+                <PatientRecords />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/patient/medications" 
+            element={
+              <ProtectedRoute allowedRoles={['patient']}>
+                <PatientMedications />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/patient/profile" 
+            element={
+              <ProtectedRoute allowedRoles={['patient']}>
+                <PatientProfile />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/patient/payments" 
+            element={
+              <ProtectedRoute allowedRoles={['patient']}>
+                <PatientPayments />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Doctor routes */}
+          <Route 
+            path="/doctor" 
+            element={
+              <ProtectedRoute allowedRoles={['doctor']}>
+                <DoctorDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/doctor/patients" 
+            element={
+              <ProtectedRoute allowedRoles={['doctor']}>
+                <DoctorPatients />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/doctor/schedule" 
+            element={
+              <ProtectedRoute allowedRoles={['doctor']}>
+                <DoctorSchedule />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/doctor/surgeries" 
+            element={
+              <ProtectedRoute allowedRoles={['doctor']}>
+                <DoctorSurgeries />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/doctor/profile" 
+            element={
+              <ProtectedRoute allowedRoles={['doctor']}>
+                <DoctorProfile />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Admin routes */}
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/doctors" 
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminDoctors />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/patients" 
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminPatients />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/reports" 
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminReports />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/settings" 
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminSettings />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Catch-all route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </MainLayout>
+    </BrowserRouter>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <MainLayout>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Index />} />
-              <Route path="/login" element={<Login />} />
-              
-              {/* Patient routes */}
-              <Route 
-                path="/patient" 
-                element={
-                  <ProtectedRoute allowedRoles={['patient']}>
-                    <PatientDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/patient/chat" 
-                element={
-                  <ProtectedRoute allowedRoles={['patient']}>
-                    <PatientChat />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/patient/appointments" 
-                element={
-                  <ProtectedRoute allowedRoles={['patient']}>
-                    <PatientAppointments />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/patient/records" 
-                element={
-                  <ProtectedRoute allowedRoles={['patient']}>
-                    <PatientRecords />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/patient/medications" 
-                element={
-                  <ProtectedRoute allowedRoles={['patient']}>
-                    <PatientMedications />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/patient/profile" 
-                element={
-                  <ProtectedRoute allowedRoles={['patient']}>
-                    <PatientProfile />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/patient/payments" 
-                element={
-                  <ProtectedRoute allowedRoles={['patient']}>
-                    <PatientPayments />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              {/* Doctor routes */}
-              <Route 
-                path="/doctor" 
-                element={
-                  <ProtectedRoute allowedRoles={['doctor']}>
-                    <DoctorDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/doctor/patients" 
-                element={
-                  <ProtectedRoute allowedRoles={['doctor']}>
-                    <DoctorPatients />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/doctor/schedule" 
-                element={
-                  <ProtectedRoute allowedRoles={['doctor']}>
-                    <DoctorSchedule />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/doctor/surgeries" 
-                element={
-                  <ProtectedRoute allowedRoles={['doctor']}>
-                    <DoctorSurgeries />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/doctor/profile" 
-                element={
-                  <ProtectedRoute allowedRoles={['doctor']}>
-                    <DoctorProfile />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              {/* Admin routes */}
-              <Route 
-                path="/admin" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/doctors" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <AdminDoctors />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/patients" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <AdminPatients />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/reports" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <AdminReports />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/settings" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <AdminSettings />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              {/* Catch-all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </MainLayout>
-        </BrowserRouter>
+        <AppContent />
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
