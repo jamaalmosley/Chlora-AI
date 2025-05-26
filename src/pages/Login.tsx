@@ -5,21 +5,58 @@ import { LoginForm } from "@/components/Auth/LoginForm";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Login() {
-  const { isAuthenticated, profile } = useAuth();
+  const { isAuthenticated, profile, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isAuthenticated && profile) {
-      const userRole = profile.role;
-      if (userRole === "patient") {
-        navigate("/patient");
-      } else if (userRole === "doctor") {
-        navigate("/doctor");
-      } else if (userRole === "admin") {
-        navigate("/admin");
+    console.log('Login component - isAuthenticated:', isAuthenticated, 'profile:', profile, 'isLoading:', isLoading);
+    
+    if (isAuthenticated && !isLoading) {
+      if (profile) {
+        const userRole = profile.role;
+        console.log('Redirecting user with role:', userRole);
+        
+        if (userRole === "patient") {
+          navigate("/patient", { replace: true });
+        } else if (userRole === "doctor") {
+          navigate("/doctor", { replace: true });
+        } else if (userRole === "admin") {
+          navigate("/admin", { replace: true });
+        } else {
+          // Default to patient if role is unclear
+          navigate("/patient", { replace: true });
+        }
+      } else {
+        // If authenticated but no profile yet, wait a bit then default to patient
+        const timer = setTimeout(() => {
+          console.log('No profile found, defaulting to patient dashboard');
+          navigate("/patient", { replace: true });
+        }, 1000);
+        
+        return () => clearTimeout(timer);
       }
     }
-  }, [isAuthenticated, profile, navigate]);
+  }, [isAuthenticated, profile, isLoading, navigate]);
+
+  // Show loading while checking auth status
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-medical-primary"></div>
+        <p className="mt-4 text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
+  // If already authenticated, show a brief loading message while redirecting
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-medical-primary"></div>
+        <p className="mt-4 text-gray-600">Redirecting to your dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
