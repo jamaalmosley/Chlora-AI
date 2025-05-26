@@ -1,7 +1,7 @@
 
-import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,89 +10,71 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu } from "lucide-react";
+import { LogOut, Settings, User } from "lucide-react";
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
-  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const { user, signOut, isAuthenticated } = useAuth();
 
-  if (!user) return null;
-
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
-  const roleDisplay = {
-    patient: "Patient",
-    doctor: "Doctor",
-    admin: "Admin",
-  }[user.role];
+  if (!isAuthenticated) return null;
+
+  const userRole = user?.user_metadata?.role || "user";
+  const userName = user?.user_metadata?.first_name || user?.email?.split("@")[0] || "User";
 
   return (
-    <header className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <div className="text-xl font-bold text-medical-primary">
-            Chlora
-          </div>
-        </div>
-
+    <nav className="bg-white border-b border-gray-200 px-4 py-2">
+      <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <span className="hidden md:inline text-sm text-gray-600">
-            Welcome, {user.name}
-          </span>
+          <h1 className="text-xl font-bold text-medical-primary">Chlora</h1>
+        </div>
+        
+        <div className="flex items-center space-x-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="relative h-8 w-8 rounded-full"
-              >
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="bg-medical-primary text-white">
-                    {getInitials(user.name)}
-                  </AvatarFallback>
+                  <AvatarImage src={user?.user_metadata?.avatar_url} alt={userName} />
+                  <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    {user.name}
-                  </p>
+                  <p className="text-sm font-medium leading-none">{userName}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user.email}
+                    {user?.email}
                   </p>
-                  <span className="text-xs bg-medical-light text-medical-primary rounded-full px-2 py-0.5 mt-1 inline-block">
-                    {roleDisplay}
-                  </span>
+                  <p className="text-xs leading-none text-muted-foreground capitalize">
+                    {userRole}
+                  </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem>
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout}>
-                Log out
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
-    </header>
+    </nav>
   );
 }

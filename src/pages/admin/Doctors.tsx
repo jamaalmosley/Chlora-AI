@@ -1,3 +1,4 @@
+
 import { MoreHorizontal } from "lucide-react";
 import { mockDoctors } from "@/data/mockData";
 import { Doctor } from "@/types";
@@ -45,7 +46,7 @@ export default function AdminDoctors() {
         {doctor.contactInfo?.phone || "N/A"}
       </TableCell>
       <TableCell>
-        <Badge variant={doctor.status === "active" ? "success" : "warning"}>
+        <Badge variant={doctor.status === "active" ? "default" : "secondary"}>
           {doctor.status === "active" ? "Active" : "On Leave"}
         </Badge>
       </TableCell>

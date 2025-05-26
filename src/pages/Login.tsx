@@ -10,11 +10,12 @@ export default function Login() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === "patient") {
+      const userRole = user.user_metadata?.role || "patient";
+      if (userRole === "patient") {
         navigate("/patient");
-      } else if (user.role === "doctor") {
+      } else if (userRole === "doctor") {
         navigate("/doctor");
-      } else if (user.role === "admin") {
+      } else if (userRole === "admin") {
         navigate("/admin");
       }
     }
