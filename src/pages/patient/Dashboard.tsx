@@ -7,7 +7,7 @@ import { Calendar, Clock, FileText, Pill, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
-interface Appointment {
+interface DatabaseAppointment {
   id: string;
   appointment_date: string;
   appointment_time: string;
@@ -32,7 +32,7 @@ interface Medication {
 
 export default function PatientDashboard() {
   const { user, profile } = useAuth();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<DatabaseAppointment[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [patientData, setPatientData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,7 +74,13 @@ export default function PatientDashboard() {
             .limit(3);
 
           if (appointmentsError) throw appointmentsError;
-          setAppointments(appointmentsData || []);
+          
+          // Filter out appointments with invalid doctor data
+          const validAppointments = (appointmentsData || []).filter(apt => 
+            apt.doctor && apt.doctor.user && apt.doctor.user.first_name
+          );
+          
+          setAppointments(validAppointments);
 
           // Fetch active medications
           const { data: medicationsData, error: medicationsError } = await supabase
