@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, User, Phone, Calendar, FileText, Pill } from "lucide-react";
+import { Search, User, Phone, Calendar, FileText, Pill, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface Patient {
   id: string;
@@ -19,7 +20,7 @@ interface Patient {
     first_name: string | null;
     last_name: string | null;
     phone: string | null;
-  };
+  } | null;
   appointments_count?: number;
   medications_count?: number;
   last_appointment?: string;
@@ -27,6 +28,7 @@ interface Patient {
 
 export default function DoctorPatients() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -64,17 +66,21 @@ export default function DoctorPatients() {
           // Get patient details
           const { data: patientsData, error: patientsError } = await supabase
             .from('patients')
-            .select(`
-              *,
-              user:profiles(first_name, last_name, phone)
-            `)
+            .select('*')
             .in('id', patientIds);
 
           if (patientsError) throw patientsError;
 
-          // Get appointment counts and last appointment for each patient
+          // Get profiles for each patient
           const patientsWithStats = await Promise.all(
             (patientsData || []).map(async (patient) => {
+              // Get user profile
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('first_name, last_name, phone')
+                .eq('id', patient.user_id)
+                .single();
+
               // Count appointments
               const { count: appointmentCount } = await supabase
                 .from('appointments')
@@ -101,6 +107,7 @@ export default function DoctorPatients() {
 
               return {
                 ...patient,
+                user: profile || { first_name: null, last_name: null, phone: null },
                 appointments_count: appointmentCount || 0,
                 medications_count: medicationCount || 0,
                 last_appointment: lastAppt?.appointment_date || null
@@ -131,6 +138,43 @@ export default function DoctorPatients() {
     });
     setFilteredPatients(filtered);
   }, [searchTerm, patients]);
+
+  const removePatient = async (patientId: string) => {
+    try {
+      // First, delete all appointments for this patient with this doctor
+      const { error: appointmentsError } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('patient_id', patientId)
+        .eq('doctor_id', doctorData.id);
+
+      if (appointmentsError) throw appointmentsError;
+
+      // Delete medications prescribed by this doctor for this patient
+      const { error: medicationsError } = await supabase
+        .from('medications')
+        .delete()
+        .eq('patient_id', patientId)
+        .eq('prescribed_by', doctorData.id);
+
+      if (medicationsError) throw medicationsError;
+
+      // Update local state to remove the patient
+      setPatients(prev => prev.filter(patient => patient.id !== patientId));
+      
+      toast({
+        title: "Patient removed",
+        description: "Patient has been removed from your practice.",
+      });
+    } catch (error) {
+      console.error('Error removing patient:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove patient. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -263,6 +307,13 @@ export default function DoctorPatients() {
                   </Button>
                   <Button variant="default" size="sm">
                     Schedule Appointment
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => removePatient(patient.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </div>

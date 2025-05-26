@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +17,7 @@ interface Appointment {
       first_name: string;
       last_name: string;
     };
-  };
+  } | null;
 }
 
 interface Patient {
@@ -26,7 +25,7 @@ interface Patient {
   user: {
     first_name: string;
     last_name: string;
-  };
+  } | null;
 }
 
 export default function DoctorDashboard() {
@@ -62,47 +61,119 @@ export default function DoctorDashboard() {
           const today = new Date().toISOString().split('T')[0];
           const { data: todayAppts, error: todayError } = await supabase
             .from('appointments')
-            .select(`
-              *,
-              patient:patients(
-                user:profiles(first_name, last_name)
-              )
-            `)
+            .select('*')
             .eq('doctor_id', doctor.id)
             .eq('appointment_date', today)
             .order('appointment_time', { ascending: true });
 
           if (todayError) throw todayError;
-          setTodayAppointments(todayAppts || []);
+
+          // Get patient data for today's appointments
+          const todayApptsWithPatients = await Promise.all(
+            (todayAppts || []).map(async (apt) => {
+              const { data: patient } = await supabase
+                .from('patients')
+                .select('user_id')
+                .eq('id', apt.patient_id)
+                .single();
+
+              if (patient) {
+                const { data: profile } = await supabase
+                  .from('profiles')
+                  .select('first_name, last_name')
+                  .eq('id', patient.user_id)
+                  .single();
+
+                return {
+                  ...apt,
+                  patient: {
+                    user: profile || { first_name: '', last_name: '' }
+                  }
+                };
+              }
+
+              return {
+                ...apt,
+                patient: { user: { first_name: '', last_name: '' } }
+              };
+            })
+          );
+
+          setTodayAppointments(todayApptsWithPatients);
 
           // Fetch upcoming appointments
           const { data: upcomingAppts, error: upcomingError } = await supabase
             .from('appointments')
-            .select(`
-              *,
-              patient:patients(
-                user:profiles(first_name, last_name)
-              )
-            `)
+            .select('*')
             .eq('doctor_id', doctor.id)
             .gte('appointment_date', new Date().toISOString().split('T')[0])
             .order('appointment_date', { ascending: true })
             .limit(5);
 
           if (upcomingError) throw upcomingError;
-          setAppointments(upcomingAppts || []);
 
-          // Fetch patient list
-          const { data: patientsData, error: patientsError } = await supabase
-            .from('patients')
-            .select(`
-              id,
-              user:profiles(first_name, last_name)
-            `)
-            .in('id', (upcomingAppts || []).map(apt => apt.patient_id));
+          // Get patient data for upcoming appointments
+          const upcomingApptsWithPatients = await Promise.all(
+            (upcomingAppts || []).map(async (apt) => {
+              const { data: patient } = await supabase
+                .from('patients')
+                .select('user_id')
+                .eq('id', apt.patient_id)
+                .single();
 
-          if (patientsError) throw patientsError;
-          setPatients(patientsData || []);
+              if (patient) {
+                const { data: profile } = await supabase
+                  .from('profiles')
+                  .select('first_name, last_name')
+                  .eq('id', patient.user_id)
+                  .single();
+
+                return {
+                  ...apt,
+                  patient: {
+                    user: profile || { first_name: '', last_name: '' }
+                  }
+                };
+              }
+
+              return {
+                ...apt,
+                patient: { user: { first_name: '', last_name: '' } }
+              };
+            })
+          );
+
+          setAppointments(upcomingApptsWithPatients);
+
+          // Get unique patient IDs from appointments
+          const patientIds = [...new Set((upcomingAppts || []).map(apt => apt.patient_id))];
+          
+          if (patientIds.length > 0) {
+            // Fetch patient data
+            const { data: patientsData } = await supabase
+              .from('patients')
+              .select('id, user_id')
+              .in('id', patientIds);
+
+            if (patientsData) {
+              const patientsWithProfiles = await Promise.all(
+                patientsData.map(async (patient) => {
+                  const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('first_name, last_name')
+                    .eq('id', patient.user_id)
+                    .single();
+
+                  return {
+                    id: patient.id,
+                    user: profile || { first_name: '', last_name: '' }
+                  };
+                })
+              );
+
+              setPatients(patientsWithProfiles);
+            }
+          }
         }
       } catch (error) {
         console.error('Error loading doctor data:', error);

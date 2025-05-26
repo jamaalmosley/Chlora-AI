@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, User, Phone, Mail, MapPin, Calendar } from "lucide-react";
+import { Search, User, Phone, Mail, MapPin, Calendar, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface Patient {
   id: string;
@@ -25,6 +26,7 @@ interface Patient {
 }
 
 export default function AdminPatients() {
+  const { toast } = useToast();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -97,6 +99,45 @@ export default function AdminPatients() {
       ));
     } catch (error) {
       console.error('Error updating patient status:', error);
+    }
+  };
+
+  const deletePatient = async (patientId: string, userId: string) => {
+    try {
+      // Delete related data first
+      await supabase.from('appointments').delete().eq('patient_id', patientId);
+      await supabase.from('medications').delete().eq('patient_id', patientId);
+      
+      // Delete patient record
+      const { error: patientError } = await supabase
+        .from('patients')
+        .delete()
+        .eq('id', patientId);
+
+      if (patientError) throw patientError;
+
+      // Delete user profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+
+      if (profileError) throw profileError;
+
+      // Update local state
+      setPatients(prev => prev.filter(patient => patient.id !== patientId));
+      
+      toast({
+        title: "Patient deleted",
+        description: "Patient and all related data have been permanently removed.",
+      });
+    } catch (error) {
+      console.error('Error deleting patient:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete patient. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -215,6 +256,13 @@ export default function AdminPatients() {
                   </Button>
                   <Button variant="outline" size="sm">
                     View Details
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => deletePatient(patient.id, patient.user.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </div>

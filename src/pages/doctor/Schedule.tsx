@@ -1,63 +1,155 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { Clock, Calendar as CalendarIcon } from "lucide-react";
+import { Clock, Calendar as CalendarIcon, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+
+interface Appointment {
+  id: string;
+  appointment_time: string;
+  type: string;
+  status: string;
+  patient: {
+    user: {
+      first_name: string;
+      last_name: string;
+    };
+  } | null;
+}
 
 const DoctorSchedule = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [appointments, setAppointments] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [doctorData, setDoctorData] = useState<any>(null);
 
   // Define time slots for the schedule
   const timeSlots = [
-    "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM",
-    "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM",
-    "04:00 PM", "05:00 PM"
+    "08:00", "09:00", "10:00", "11:00",
+    "12:00", "13:00", "14:00", "15:00",
+    "16:00", "17:00"
   ];
 
   useEffect(() => {
-    // Simulate loading appointments from an API
-    const loadAppointments = () => {
+    const loadDoctorData = async () => {
+      if (!user) return;
+      
+      try {
+        const { data: doctor, error: doctorError } = await supabase
+          .from('doctors')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (doctorError) throw doctorError;
+        setDoctorData(doctor);
+      } catch (error) {
+        console.error('Error loading doctor data:', error);
+      }
+    };
+
+    if (user) {
+      loadDoctorData();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const loadAppointments = async () => {
+      if (!date || !doctorData) return;
+      
       setIsLoading(true);
       
-      // Mock data - in a real app, this would be an API call
-      setTimeout(() => {
-        // Generate some mock appointments for the selected date
-        const mockAppointments = [
-          {
-            id: "1",
-            time: "09:00 AM",
-            patientName: "Sarah Johnson",
-            purpose: "Check-up",
-            status: "confirmed"
-          },
-          {
-            id: "2",
-            time: "02:00 PM",
-            patientName: "Michael Smith",
-            purpose: "Post-operative follow-up",
-            status: "confirmed"
-          }
-        ];
+      try {
+        const selectedDate = format(date, 'yyyy-MM-dd');
         
-        setAppointments(mockAppointments);
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('doctor_id', doctorData.id)
+          .eq('appointment_date', selectedDate)
+          .order('appointment_time', { ascending: true });
+
+        if (appointmentsError) throw appointmentsError;
+
+        // Get patient data for each appointment
+        const appointmentsWithPatients = await Promise.all(
+          (appointmentsData || []).map(async (apt) => {
+            const { data: patient } = await supabase
+              .from('patients')
+              .select('user_id')
+              .eq('id', apt.patient_id)
+              .single();
+
+            if (patient) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('first_name, last_name')
+                .eq('id', patient.user_id)
+                .single();
+
+              return {
+                ...apt,
+                patient: {
+                  user: profile || { first_name: '', last_name: '' }
+                }
+              };
+            }
+
+            return {
+              ...apt,
+              patient: { user: { first_name: '', last_name: '' } }
+            };
+          })
+        );
+
+        setAppointments(appointmentsWithPatients);
+      } catch (error) {
+        console.error('Error loading appointments:', error);
+      } finally {
         setIsLoading(false);
-      }, 1000);
+      }
     };
     
-    if (date) {
+    if (date && doctorData) {
       loadAppointments();
     }
-  }, [date]);
+  }, [date, doctorData]);
 
   const getAppointmentForTimeSlot = (time: string) => {
-    return appointments.find(app => app.time === time);
+    return appointments.find(app => app.appointment_time === time);
+  };
+
+  const deleteAppointment = async (appointmentId: string) => {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', appointmentId);
+
+      if (error) throw error;
+
+      setAppointments(prev => prev.filter(apt => apt.id !== appointmentId));
+      
+      toast({
+        title: "Appointment deleted",
+        description: "The appointment has been successfully removed.",
+      });
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete appointment. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -113,17 +205,28 @@ const DoctorSchedule = () => {
                         <span className="font-medium w-20">{time}</span>
                         {appointment ? (
                           <div className="ml-4">
-                            <p className="font-medium">{appointment.patientName}</p>
-                            <p className="text-sm text-gray-600">{appointment.purpose}</p>
+                            <p className="font-medium">
+                              {appointment.patient?.user?.first_name} {appointment.patient?.user?.last_name}
+                            </p>
+                            <p className="text-sm text-gray-600">{appointment.type}</p>
                           </div>
                         ) : (
                           <span className="text-gray-500 ml-4">Available</span>
                         )}
                       </div>
                       
-                      <div>
+                      <div className="flex items-center space-x-2">
                         {appointment ? (
-                          <Button variant="outline" size="sm">View Details</Button>
+                          <>
+                            <Button variant="outline" size="sm">View Details</Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => deleteAppointment(appointment.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
                         ) : (
                           <Button variant="outline" size="sm">Add Appointment</Button>
                         )}
