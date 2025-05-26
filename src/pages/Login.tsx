@@ -12,44 +12,54 @@ export default function Login() {
     console.log('Login component - isAuthenticated:', isAuthenticated, 'profile:', profile, 'isLoading:', isLoading);
     
     if (isAuthenticated && !isLoading) {
+      console.log('Login: User is authenticated, preparing redirect');
+      
       if (profile) {
         const userRole = profile.role;
-        console.log('Redirecting user with role:', userRole);
+        console.log('Login: Redirecting user with role:', userRole);
         
         if (userRole === "patient") {
+          console.log('Login: Navigating to patient dashboard');
           navigate("/patient", { replace: true });
         } else if (userRole === "doctor") {
+          console.log('Login: Navigating to doctor dashboard');
           navigate("/doctor", { replace: true });
         } else if (userRole === "admin") {
+          console.log('Login: Navigating to admin dashboard');
           navigate("/admin", { replace: true });
         } else {
-          // Default to patient if role is unclear
+          console.log('Login: Unknown role, defaulting to patient dashboard');
           navigate("/patient", { replace: true });
         }
       } else {
-        // If authenticated but no profile yet, wait a bit then default to patient
+        console.log('Login: No profile found, setting timeout for redirect');
         const timer = setTimeout(() => {
-          console.log('No profile found, defaulting to patient dashboard');
+          console.log('Login: Timeout reached, defaulting to patient dashboard');
           navigate("/patient", { replace: true });
-        }, 1000);
+        }, 2000); // Increased timeout to 2 seconds
         
-        return () => clearTimeout(timer);
+        return () => {
+          console.log('Login: Clearing redirect timeout');
+          clearTimeout(timer);
+        };
       }
     }
   }, [isAuthenticated, profile, isLoading, navigate]);
 
   // Show loading while checking auth status
   if (isLoading) {
+    console.log('Login: Showing loading screen - auth check in progress');
     return (
       <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-medical-primary"></div>
-        <p className="mt-4 text-gray-600">Loading...</p>
+        <p className="mt-4 text-gray-600">Checking authentication...</p>
       </div>
     );
   }
 
   // If already authenticated, show a brief loading message while redirecting
   if (isAuthenticated) {
+    console.log('Login: User authenticated, showing redirect screen');
     return (
       <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-medical-primary"></div>
@@ -58,6 +68,7 @@ export default function Login() {
     );
   }
 
+  console.log('Login: Showing login form');
   return (
     <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
       <div className="w-full max-w-md">
