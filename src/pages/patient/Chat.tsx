@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Send, Bot, User } from "lucide-react";
 import { ChatMessage } from "@/types";
+import { DoctorStatus } from "@/components/DoctorStatus";
 
 export default function PatientChat() {
   const { profile } = useAuth();
@@ -69,6 +70,11 @@ export default function PatientChat() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Healthcare Assistant</h1>
           <p className="text-gray-600">Get help with your health questions and concerns</p>
+        </div>
+
+        {/* Doctor Status */}
+        <div className="mb-4">
+          <DoctorStatus showInChat={true} />
         </div>
 
         <Card className="flex-1 flex flex-col">

@@ -6,8 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Mail, Phone, Award, Clipboard, MapPin, Users, Clock } from "lucide-react";
+import { Mail, Phone, Award, Clipboard, MapPin, Users, Clock, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface DoctorData {
   id: string;
@@ -22,8 +27,15 @@ interface DoctorData {
 
 const DoctorProfile = () => {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [doctorData, setDoctorData] = useState<DoctorData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    working_hours: '',
+    contact_address: ''
+  });
 
   useEffect(() => {
     const loadDoctorData = async () => {
@@ -40,6 +52,10 @@ const DoctorProfile = () => {
         
         if (error) throw error;
         setDoctorData(data);
+        setEditForm({
+          working_hours: data.working_hours || '',
+          contact_address: data.contact_address || ''
+        });
       } catch (error) {
         console.error('Error loading doctor data:', error);
       } finally {
@@ -51,6 +67,57 @@ const DoctorProfile = () => {
       loadDoctorData();
     }
   }, [user]);
+
+  const handleEditProfile = () => {
+    setIsEditDialogOpen(true);
+  };
+
+  const handleViewSchedule = () => {
+    navigate('/doctor/schedule');
+  };
+
+  const handleManageAvailability = () => {
+    navigate('/doctor/schedule');
+  };
+
+  const handleViewPatients = () => {
+    navigate('/doctor/patients');
+  };
+
+  const handleSaveProfile = async () => {
+    if (!doctorData) return;
+
+    try {
+      const { error } = await supabase
+        .from('doctors')
+        .update({
+          working_hours: editForm.working_hours,
+          contact_address: editForm.contact_address
+        })
+        .eq('id', doctorData.id);
+
+      if (error) throw error;
+
+      setDoctorData(prev => prev ? {
+        ...prev,
+        working_hours: editForm.working_hours,
+        contact_address: editForm.contact_address
+      } : null);
+
+      setIsEditDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "Profile updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile.",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -129,7 +196,8 @@ const DoctorProfile = () => {
               )}
             </div>
             
-            <Button variant="outline" className="mt-6 w-full">
+            <Button variant="outline" className="mt-6 w-full" onClick={handleEditProfile}>
+              <Edit className="w-4 h-4 mr-2" />
               Edit Profile
             </Button>
           </CardContent>
@@ -198,8 +266,8 @@ const DoctorProfile = () => {
                   <p className="text-gray-700 text-sm">View and modify your appointments and surgeries</p>
                 </div>
                 <div className="space-x-2">
-                  <Button variant="outline" size="sm">View Schedule</Button>
-                  <Button size="sm">Manage Availability</Button>
+                  <Button variant="outline" size="sm" onClick={handleViewSchedule}>View Schedule</Button>
+                  <Button size="sm" onClick={handleManageAvailability}>Manage Availability</Button>
                 </div>
               </div>
             </CardContent>
@@ -219,12 +287,49 @@ const DoctorProfile = () => {
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Manage Your Patients</h3>
                   <p className="text-gray-700 text-sm">Access patient records, charts, and medical history</p>
                 </div>
-                <Button>View Patients</Button>
+                <Button onClick={handleViewPatients}>View Patients</Button>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Profile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="working_hours">Working Hours</Label>
+              <Input
+                id="working_hours"
+                value={editForm.working_hours}
+                onChange={(e) => setEditForm(prev => ({ ...prev, working_hours: e.target.value }))}
+                placeholder="e.g., Monday-Friday 9AM-5PM"
+              />
+            </div>
+            <div>
+              <Label htmlFor="contact_address">Contact Address</Label>
+              <Input
+                id="contact_address"
+                value={editForm.contact_address}
+                onChange={(e) => setEditForm(prev => ({ ...prev, contact_address: e.target.value }))}
+                placeholder="Practice address"
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveProfile}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

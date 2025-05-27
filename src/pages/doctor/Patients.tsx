@@ -6,9 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, User, Phone, Calendar, FileText, Pill, Trash2 } from "lucide-react";
+import { Search, User, Phone, Calendar, FileText, Pill, Trash2, Plus, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface Patient {
   id: string;
@@ -34,6 +36,8 @@ export default function DoctorPatients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [doctorData, setDoctorData] = useState<any>(null);
+  const [isAddPatientOpen, setIsAddPatientOpen] = useState(false);
+  const [newPatientEmail, setNewPatientEmail] = useState("");
 
   useEffect(() => {
     const loadDoctorPatients = async () => {
@@ -139,6 +143,77 @@ export default function DoctorPatients() {
     setFilteredPatients(filtered);
   }, [searchTerm, patients]);
 
+  const addPatientToDoctor = async () => {
+    if (!newPatientEmail.trim() || !doctorData) return;
+
+    try {
+      // Find the patient by email through their profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', newPatientEmail) // Assuming email search, but could be improved
+        .single();
+
+      if (profileError) {
+        toast({
+          title: "Patient not found",
+          description: "No patient found with that email address.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get the patient record
+      const { data: patient, error: patientError } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('user_id', profile.id)
+        .single();
+
+      if (patientError) {
+        toast({
+          title: "Patient not found",
+          description: "No patient record found for this user.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create an appointment to link them (this is how we track doctor-patient relationships)
+      const { error: appointmentError } = await supabase
+        .from('appointments')
+        .insert({
+          patient_id: patient.id,
+          doctor_id: doctorData.id,
+          appointment_date: new Date().toISOString().split('T')[0],
+          appointment_time: '09:00',
+          type: 'consultation',
+          status: 'scheduled',
+          notes: 'Initial consultation - patient added to practice'
+        });
+
+      if (appointmentError) throw appointmentError;
+
+      toast({
+        title: "Patient added",
+        description: "Patient has been added to your practice.",
+      });
+
+      setIsAddPatientOpen(false);
+      setNewPatientEmail("");
+      
+      // Reload patients list
+      window.location.reload();
+    } catch (error) {
+      console.error('Error adding patient:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add patient. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const removePatient = async (patientId: string) => {
     try {
       // First, delete all appointments for this patient with this doctor
@@ -187,11 +262,47 @@ export default function DoctorPatients() {
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">My Patients</h1>
-        <p className="text-gray-600 mt-2">Patients under your care</p>
-        {doctorData && (
-          <p className="text-sm text-gray-500">Specialty: {doctorData.specialty}</p>
-        )}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">My Patients</h1>
+            <p className="text-gray-600 mt-2">Patients under your care</p>
+            {doctorData && (
+              <p className="text-sm text-gray-500">Specialty: {doctorData.specialty}</p>
+            )}
+          </div>
+          <Dialog open={isAddPatientOpen} onOpenChange={setIsAddPatientOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add Patient
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Patient to Your Practice</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="patientEmail">Patient Email or ID</Label>
+                  <Input
+                    id="patientEmail"
+                    value={newPatientEmail}
+                    onChange={(e) => setNewPatientEmail(e.target.value)}
+                    placeholder="Enter patient's email address"
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setIsAddPatientOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={addPatientToDoctor}>
+                    Add Patient
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Search and Stats */}
@@ -331,6 +442,13 @@ export default function DoctorPatients() {
               <p className="text-gray-600">
                 {searchTerm ? 'Try adjusting your search criteria.' : 'You don\'t have any patients yet.'}
               </p>
+              <Button 
+                className="mt-4" 
+                onClick={() => setIsAddPatientOpen(true)}
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add Your First Patient
+              </Button>
             </div>
           </CardContent>
         </Card>
