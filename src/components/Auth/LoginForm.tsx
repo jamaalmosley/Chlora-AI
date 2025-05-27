@@ -23,6 +23,7 @@ export function LoginForm() {
   const [lastName, setLastName] = useState("");
   const [role, setRole] = useState("patient");
   const [showPhysicianSetup, setShowPhysicianSetup] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
   const { signIn, signUp, error, isLoading } = useAuth();
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -36,6 +37,8 @@ export function LoginForm() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSigningUp(true);
+    
     try {
       await signUp(email, password, {
         first_name: firstName,
@@ -49,23 +52,27 @@ export function LoginForm() {
         setShowPhysicianSetup(true);
       }
     } catch (err) {
-      // Error is handled in the auth context
       console.error('Signup error:', err);
+    } finally {
+      setIsSigningUp(false);
     }
   };
 
   const handlePhysicianSetupComplete = () => {
     console.log('Physician setup completed');
     setShowPhysicianSetup(false);
+    // Reset form state
+    setEmail("");
+    setPassword("");
+    setFirstName("");
+    setLastName("");
+    setRole("patient");
     // The user will be redirected by the auth context
   };
 
+  // Show physician setup if it's a doctor signup
   if (showPhysicianSetup) {
-    return (
-      <div className="w-full max-w-4xl">
-        <PhysicianSetup onComplete={handlePhysicianSetupComplete} />
-      </div>
-    );
+    return <PhysicianSetup onComplete={handlePhysicianSetupComplete} />;
   }
 
   return (
@@ -196,9 +203,9 @@ export function LoginForm() {
               <Button 
                 type="submit" 
                 className="w-full bg-medical-primary hover:bg-medical-dark" 
-                disabled={isLoading}
+                disabled={isLoading || isSigningUp}
               >
-                {isLoading ? "Creating account..." : "Create Account"}
+                {isLoading || isSigningUp ? "Creating account..." : "Create Account"}
               </Button>
             </form>
           </TabsContent>
