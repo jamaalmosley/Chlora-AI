@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PhysicianSetup } from "./PhysicianSetup";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -21,6 +22,7 @@ export function LoginForm() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [role, setRole] = useState("patient");
+  const [showPhysicianSetup, setShowPhysicianSetup] = useState(false);
   const { signIn, signUp, error, isLoading } = useAuth();
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -40,10 +42,28 @@ export function LoginForm() {
         last_name: lastName,
         role: role
       });
+      
+      // If user is signing up as a doctor, show physician setup
+      if (role === 'doctor') {
+        setShowPhysicianSetup(true);
+      }
     } catch (err) {
       // Error is handled in the auth context
     }
   };
+
+  const handlePhysicianSetupComplete = () => {
+    setShowPhysicianSetup(false);
+    // The user will be redirected by the auth context
+  };
+
+  if (showPhysicianSetup) {
+    return (
+      <div className="w-full max-w-4xl">
+        <PhysicianSetup onComplete={handlePhysicianSetupComplete} />
+      </div>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md shadow-lg">
@@ -158,10 +178,18 @@ export function LoginForm() {
                   className="w-full p-2 border border-gray-300 rounded-md"
                 >
                   <option value="patient">Patient</option>
-                  <option value="doctor">Doctor</option>
+                  <option value="doctor">Doctor/Physician</option>
                   <option value="admin">Administrator</option>
                 </select>
               </div>
+              
+              {role === 'doctor' && (
+                <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-800">
+                  <p className="font-medium mb-1">Physician Registration</p>
+                  <p>After creating your account, you'll be guided through setting up your practice or joining an existing one.</p>
+                </div>
+              )}
+              
               <Button 
                 type="submit" 
                 className="w-full bg-medical-primary hover:bg-medical-dark" 
