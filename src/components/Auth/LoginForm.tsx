@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -40,21 +39,32 @@ export function LoginForm() {
     setIsSigningUp(true);
     
     try {
-      await signUp(email, password, {
+      console.log('Starting signup process for role:', role);
+      const result = await signUp(email, password, {
         first_name: firstName,
         last_name: lastName,
         role: role
       });
       
-      // If user is signing up as a doctor, show physician setup
+      console.log('Signup result:', result);
+      
+      // If user is signing up as a doctor, show physician setup immediately
       if (role === 'doctor') {
         console.log('Doctor signup successful, showing physician setup');
+        setIsSigningUp(false); // Stop loading immediately
         setShowPhysicianSetup(true);
+        return; // Don't continue with normal flow
       }
+      
+      // For non-doctors, normal flow continues
+      console.log('Non-doctor signup successful');
+      
     } catch (err) {
       console.error('Signup error:', err);
     } finally {
-      setIsSigningUp(false);
+      if (role !== 'doctor') {
+        setIsSigningUp(false);
+      }
     }
   };
 
@@ -67,16 +77,22 @@ export function LoginForm() {
     setFirstName("");
     setLastName("");
     setRole("patient");
-    // The user will be redirected by the auth context
+    setIsSigningUp(false);
+    // The user will be redirected by the auth context after profile is updated
   };
 
   // Show physician setup if it's a doctor signup
   if (showPhysicianSetup) {
-    return <PhysicianSetup onComplete={handlePhysicianSetupComplete} />;
+    console.log('Rendering PhysicianSetup component');
+    return (
+      <div className="w-full max-w-4xl mx-auto">
+        <PhysicianSetup onComplete={handlePhysicianSetupComplete} />
+      </div>
+    );
   }
 
   return (
-    <Card className="w-full max-w-md shadow-lg">
+    <Card className="w-full max-w-md mx-auto shadow-lg">
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl font-bold text-center text-medical-primary">
           Chlora Medical Portal

@@ -49,8 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('AuthContext: Profile fetched successfully:', data);
       setProfile(data);
+      return data;
     } catch (err) {
       console.error('AuthContext: Error fetching profile:', err);
+      return null;
     }
   };
 
@@ -65,13 +67,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          // For new signups, wait a moment for the profile to be created by the trigger
+          if (event === 'SIGNED_UP') {
+            console.log('AuthContext: New signup detected, waiting for profile creation');
+            setTimeout(async () => {
+              await fetchProfile(session.user.id);
+              setIsLoading(false);
+            }, 500);
+          } else {
+            await fetchProfile(session.user.id);
+            setIsLoading(false);
+          }
         } else {
           setProfile(null);
+          setIsLoading(false);
         }
-        
-        console.log('AuthContext: Setting isLoading to false');
-        setIsLoading(false);
       }
     );
 

@@ -7,13 +7,12 @@ import { useAuth } from "@/context/AuthContext";
 export default function Login() {
   const { isAuthenticated, profile, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [allowRedirect, setAllowRedirect] = useState(false);
 
   useEffect(() => {
     console.log('Login component - isAuthenticated:', isAuthenticated, 'profile:', profile, 'isLoading:', isLoading);
     
-    // Only redirect if user is authenticated, not loading, has a profile, and we allow redirects
-    if (isAuthenticated && !isLoading && profile && allowRedirect) {
+    // Only redirect if user is authenticated, not loading, has a profile
+    if (isAuthenticated && !isLoading && profile) {
       console.log('Login: User is authenticated, preparing redirect');
       
       const userRole = profile.role;
@@ -33,17 +32,7 @@ export default function Login() {
         navigate("/patient", { replace: true });
       }
     }
-  }, [isAuthenticated, profile, isLoading, navigate, allowRedirect]);
-
-  // Allow redirect after a short delay to let setup processes complete
-  useEffect(() => {
-    if (isAuthenticated && profile) {
-      const timer = setTimeout(() => {
-        setAllowRedirect(true);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [isAuthenticated, profile]);
+  }, [isAuthenticated, profile, isLoading, navigate]);
 
   // Show loading while checking auth status
   if (isLoading) {
@@ -56,13 +45,8 @@ export default function Login() {
     );
   }
 
-  // If already authenticated but not allowing redirect yet (during setup), show the login form
-  if (isAuthenticated && profile && !allowRedirect) {
-    console.log('Login: User authenticated but in setup phase, showing login form');
-  }
-
-  // If already authenticated and allowing redirects, show a brief loading message while redirecting
-  if (isAuthenticated && profile && allowRedirect) {
+  // If already authenticated, show a brief loading message while redirecting
+  if (isAuthenticated && profile) {
     console.log('Login: User authenticated, showing redirect screen');
     return (
       <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
