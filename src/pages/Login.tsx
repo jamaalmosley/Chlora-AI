@@ -11,37 +11,24 @@ export default function Login() {
   useEffect(() => {
     console.log('Login component - isAuthenticated:', isAuthenticated, 'profile:', profile, 'isLoading:', isLoading);
     
-    if (isAuthenticated && !isLoading) {
+    if (isAuthenticated && !isLoading && profile) {
       console.log('Login: User is authenticated, preparing redirect');
       
-      if (profile) {
-        const userRole = profile.role;
-        console.log('Login: Redirecting user with role:', userRole);
-        
-        if (userRole === "patient") {
-          console.log('Login: Navigating to patient dashboard');
-          navigate("/patient", { replace: true });
-        } else if (userRole === "doctor") {
-          console.log('Login: Navigating to doctor dashboard');
-          navigate("/doctor", { replace: true });
-        } else if (userRole === "admin") {
-          console.log('Login: Navigating to admin dashboard');
-          navigate("/admin", { replace: true });
-        } else {
-          console.log('Login: Unknown role, defaulting to patient dashboard');
-          navigate("/patient", { replace: true });
-        }
+      const userRole = profile.role;
+      console.log('Login: Redirecting user with role:', userRole);
+      
+      if (userRole === "patient") {
+        console.log('Login: Navigating to patient dashboard');
+        navigate("/patient", { replace: true });
+      } else if (userRole === "doctor") {
+        console.log('Login: Navigating to doctor dashboard');
+        navigate("/doctor", { replace: true });
+      } else if (userRole === "admin") {
+        console.log('Login: Navigating to admin dashboard');
+        navigate("/admin", { replace: true });
       } else {
-        console.log('Login: No profile found, setting timeout for redirect');
-        const timer = setTimeout(() => {
-          console.log('Login: Timeout reached, defaulting to patient dashboard');
-          navigate("/patient", { replace: true });
-        }, 2000); // Increased timeout to 2 seconds
-        
-        return () => {
-          console.log('Login: Clearing redirect timeout');
-          clearTimeout(timer);
-        };
+        console.log('Login: Unknown role, defaulting to patient dashboard');
+        navigate("/patient", { replace: true });
       }
     }
   }, [isAuthenticated, profile, isLoading, navigate]);
@@ -58,7 +45,7 @@ export default function Login() {
   }
 
   // If already authenticated, show a brief loading message while redirecting
-  if (isAuthenticated) {
+  if (isAuthenticated && profile) {
     console.log('Login: User authenticated, showing redirect screen');
     return (
       <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
