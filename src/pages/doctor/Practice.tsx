@@ -19,15 +19,17 @@ interface Practice {
   email?: string;
 }
 
+interface StaffProfile {
+  first_name?: string;
+  last_name?: string;
+}
+
 interface StaffMember {
   id: string;
   role: string;
   department?: string;
   status: string;
-  profiles: {
-    first_name?: string;
-    last_name?: string;
-  };
+  profiles?: StaffProfile;
 }
 
 export default function DoctorPractice() {
@@ -87,10 +89,7 @@ export default function DoctorPractice() {
           role,
           department,
           status,
-          profiles (
-            first_name,
-            last_name
-          )
+          user_id
         `)
         .eq('practice_id', staffData.practice_id)
         .eq('status', 'active');
@@ -98,7 +97,23 @@ export default function DoctorPractice() {
       if (staffListError) {
         console.error('Error fetching staff:', staffListError);
       } else {
-        setStaffMembers(staffList || []);
+        // Get profiles for each staff member
+        const staffWithProfiles = await Promise.all(
+          (staffList || []).map(async (staff) => {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', staff.user_id)
+              .single();
+
+            return {
+              ...staff,
+              profiles: profileData
+            };
+          })
+        );
+        
+        setStaffMembers(staffWithProfiles);
       }
 
     } catch (err) {
@@ -267,7 +282,7 @@ export default function DoctorPractice() {
                 <div key={staff.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <div className="font-medium">
-                      {staff.profiles.first_name} {staff.profiles.last_name}
+                      {staff.profiles?.first_name} {staff.profiles?.last_name}
                     </div>
                     <div className="text-sm text-gray-600 capitalize">
                       {staff.role} {staff.department && `• ${staff.department}`}

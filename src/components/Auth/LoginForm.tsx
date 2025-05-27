@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -44,7 +43,7 @@ export function LoginForm() {
       });
       
       // If user is signing up as a doctor, show physician setup
-      if (role === 'doctor' && result) {
+      if (role === 'doctor' && result?.user) {
         console.log('Doctor signup successful, showing physician setup');
         setShowPhysicianSetup(true);
       }
