@@ -32,6 +32,7 @@ import DoctorProfile from "./pages/doctor/Profile";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminDoctors from "./pages/admin/Doctors";
 import AdminPatients from "./pages/admin/Patients";
+import AdminPractices from "./pages/admin/Practices";
 import AdminReports from "./pages/admin/Reports";
 import AdminSettings from "./pages/admin/Settings";
 
@@ -182,6 +183,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/practices" 
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminPractices />
               </ProtectedRoute>
             } 
           />

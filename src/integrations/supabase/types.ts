@@ -168,6 +168,48 @@ export type Database = {
           },
         ]
       }
+      patient_assignments: {
+        Row: {
+          assigned_by: string | null
+          assigned_date: string
+          id: string
+          patient_id: string
+          practice_id: string
+          status: string | null
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_date?: string
+          id?: string
+          patient_id: string
+          practice_id: string
+          status?: string | null
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_date?: string
+          id?: string
+          patient_id?: string
+          practice_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_assignments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_assignments_practice_id_fkey"
+            columns: ["practice_id"]
+            isOneToOne: false
+            referencedRelation: "practices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patients: {
         Row: {
           address: string | null
@@ -219,6 +261,36 @@ export type Database = {
         }
         Relationships: []
       }
+      practices: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -251,6 +323,53 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      staff: {
+        Row: {
+          created_at: string
+          department: string | null
+          hire_date: string | null
+          id: string
+          permissions: string[] | null
+          practice_id: string
+          role: string
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          hire_date?: string | null
+          id?: string
+          permissions?: string[] | null
+          practice_id: string
+          role: string
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          hire_date?: string | null
+          id?: string
+          permissions?: string[] | null
+          practice_id?: string
+          role?: string
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_practice_id_fkey"
+            columns: ["practice_id"]
+            isOneToOne: false
+            referencedRelation: "practices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
