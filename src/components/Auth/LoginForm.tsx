@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -36,14 +37,14 @@ export function LoginForm() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const result = await signUp(email, password, {
+      await signUp(email, password, {
         first_name: firstName,
         last_name: lastName,
         role: role
       });
       
       // If user is signing up as a doctor, show physician setup
-      if (role === 'doctor' && result?.user) {
+      if (role === 'doctor') {
         console.log('Doctor signup successful, showing physician setup');
         setShowPhysicianSetup(true);
       }

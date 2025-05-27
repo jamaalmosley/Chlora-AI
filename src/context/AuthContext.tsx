@@ -18,7 +18,7 @@ interface AuthContextType {
   session: Session | null;
   isLoading: boolean;
   error: string | null;
-  signUp: (email: string, password: string, userData?: any) => Promise<void>;
+  signUp: (email: string, password: string, userData?: any) => Promise<{ user?: User }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -112,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (error) throw error;
       console.log('AuthContext: Sign up successful');
+      return { user: data.user };
     } catch (err) {
       console.error('AuthContext: Sign up error:', err);
       setError(err instanceof Error ? err.message : "An error occurred");
