@@ -81,6 +81,16 @@ export default function Sidebar() {
       icon: <Users className="h-5 w-5" />,
     },
     {
+      name: "My Practice",
+      path: "/doctor/practice",
+      icon: <Building className="h-5 w-5" />,
+    },
+    {
+      name: "Staff",
+      path: "/doctor/staff",
+      icon: <Users className="h-5 w-5" />,
+    },
+    {
       name: "Surgeries",
       path: "/doctor/surgeries",
       icon: <ClipboardList className="h-5 w-5" />,

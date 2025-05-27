@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, Mail, Phone, Calendar, Trash2 } from "lucide-react";
+import { Search, UserPlus, Phone, Calendar, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -36,7 +35,7 @@ interface Patient {
     last_name?: string;
     phone?: string;
     avatar_url?: string;
-  };
+  } | null;
 }
 
 interface PatientAssignment {
@@ -106,7 +105,7 @@ export default function DoctorPatients() {
             allergies,
             medical_history,
             status,
-            profiles!inner (
+            profiles (
               first_name,
               last_name,
               phone,

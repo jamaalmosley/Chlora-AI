@@ -37,22 +37,25 @@ export function LoginForm() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await signUp(email, password, {
+      const result = await signUp(email, password, {
         first_name: firstName,
         last_name: lastName,
         role: role
       });
       
       // If user is signing up as a doctor, show physician setup
-      if (role === 'doctor') {
+      if (role === 'doctor' && result) {
+        console.log('Doctor signup successful, showing physician setup');
         setShowPhysicianSetup(true);
       }
     } catch (err) {
       // Error is handled in the auth context
+      console.error('Signup error:', err);
     }
   };
 
   const handlePhysicianSetupComplete = () => {
+    console.log('Physician setup completed');
     setShowPhysicianSetup(false);
     // The user will be redirected by the auth context
   };
