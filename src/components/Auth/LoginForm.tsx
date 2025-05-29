@@ -15,7 +15,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PhysicianSetup } from "./PhysicianSetup";
 
-export function LoginForm() {
+interface LoginFormProps {
+  onDoctorSignupStart?: () => void;
+  onSetupComplete?: () => void;
+}
+
+export function LoginForm({ onDoctorSignupStart, onSetupComplete }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -40,6 +45,12 @@ export function LoginForm() {
     
     try {
       console.log('Starting signup process for role:', role);
+      
+      // Notify parent if this is a doctor signup
+      if (role === 'doctor') {
+        onDoctorSignupStart?.();
+      }
+      
       const result = await signUp(email, password, {
         first_name: firstName,
         last_name: lastName,
@@ -61,6 +72,10 @@ export function LoginForm() {
       
     } catch (err) {
       console.error('Signup error:', err);
+      // Reset doctor signup state on error
+      if (role === 'doctor') {
+        onSetupComplete?.();
+      }
     } finally {
       if (role !== 'doctor') {
         setIsSigningUp(false);
@@ -78,6 +93,8 @@ export function LoginForm() {
     setLastName("");
     setRole("patient");
     setIsSigningUp(false);
+    // Notify parent that setup is complete
+    onSetupComplete?.();
     // The user will be redirected by the auth context after profile is updated
   };
 

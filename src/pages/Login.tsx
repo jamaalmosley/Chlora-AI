@@ -7,9 +7,16 @@ import { useAuth } from "@/context/AuthContext";
 export default function Login() {
   const { isAuthenticated, profile, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [isNewDoctorSignup, setIsNewDoctorSignup] = useState(false);
 
   useEffect(() => {
     console.log('Login component - isAuthenticated:', isAuthenticated, 'profile:', profile, 'isLoading:', isLoading);
+    
+    // Don't redirect if this is a new doctor signup that needs to complete setup
+    if (isNewDoctorSignup) {
+      console.log('Login: New doctor signup in progress, not redirecting');
+      return;
+    }
     
     // Only redirect if user is authenticated, not loading, has a profile
     if (isAuthenticated && !isLoading && profile) {
@@ -32,7 +39,7 @@ export default function Login() {
         navigate("/patient", { replace: true });
       }
     }
-  }, [isAuthenticated, profile, isLoading, navigate]);
+  }, [isAuthenticated, profile, isLoading, navigate, isNewDoctorSignup]);
 
   // Show loading while checking auth status
   if (isLoading) {
@@ -45,8 +52,8 @@ export default function Login() {
     );
   }
 
-  // If already authenticated, show a brief loading message while redirecting
-  if (isAuthenticated && profile) {
+  // If already authenticated and not a new doctor signup, show a brief loading message while redirecting
+  if (isAuthenticated && profile && !isNewDoctorSignup) {
     console.log('Login: User authenticated, showing redirect screen');
     return (
       <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
@@ -68,7 +75,7 @@ export default function Login() {
             Streamlined Healthcare Management
           </p>
         </div>
-        <LoginForm />
+        <LoginForm onDoctorSignupStart={() => setIsNewDoctorSignup(true)} onSetupComplete={() => setIsNewDoctorSignup(false)} />
         <p className="text-center mt-6 text-sm text-gray-500">
           © 2025 Chlora. All rights reserved.
         </p>
