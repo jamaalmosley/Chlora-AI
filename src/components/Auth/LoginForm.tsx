@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -46,11 +47,6 @@ export function LoginForm({ onDoctorSignupStart, onSetupComplete }: LoginFormPro
     try {
       console.log('Starting signup process for role:', role);
       
-      // Notify parent if this is a doctor signup
-      if (role === 'doctor') {
-        onDoctorSignupStart?.();
-      }
-      
       const result = await signUp(email, password, {
         first_name: firstName,
         last_name: lastName,
@@ -59,12 +55,13 @@ export function LoginForm({ onDoctorSignupStart, onSetupComplete }: LoginFormPro
       
       console.log('Signup result:', result);
       
-      // If user is signing up as a doctor, show physician setup immediately
+      // If user is signing up as a doctor, trigger the setup flow
       if (role === 'doctor') {
-        console.log('Doctor signup successful, showing physician setup');
-        setIsSigningUp(false); // Stop loading immediately
+        console.log('Doctor signup successful, triggering setup flow');
+        onDoctorSignupStart?.();
         setShowPhysicianSetup(true);
-        return; // Don't continue with normal flow
+        setIsSigningUp(false);
+        return;
       }
       
       // For non-doctors, normal flow continues
@@ -72,10 +69,6 @@ export function LoginForm({ onDoctorSignupStart, onSetupComplete }: LoginFormPro
       
     } catch (err) {
       console.error('Signup error:', err);
-      // Reset doctor signup state on error
-      if (role === 'doctor') {
-        onSetupComplete?.();
-      }
     } finally {
       if (role !== 'doctor') {
         setIsSigningUp(false);
@@ -95,7 +88,6 @@ export function LoginForm({ onDoctorSignupStart, onSetupComplete }: LoginFormPro
     setIsSigningUp(false);
     // Notify parent that setup is complete
     onSetupComplete?.();
-    // The user will be redirected by the auth context after profile is updated
   };
 
   // Show physician setup if it's a doctor signup

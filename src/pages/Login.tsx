@@ -27,8 +27,8 @@ export default function Login() {
       return;
     }
     
-    // Only redirect if user is authenticated, not loading, has a profile
-    if (isAuthenticated && !isLoading && profile) {
+    // Only redirect if user is authenticated, not loading, has a profile, and NOT a doctor needing setup
+    if (isAuthenticated && !isLoading && profile && !needsDoctorSetup) {
       console.log('Login: User is authenticated, preparing redirect');
       
       const userRole = profile.role;
@@ -80,6 +80,13 @@ export default function Login() {
     console.log('Login: Setup completed, resetting flags');
     setIsNewDoctorSignup(false);
     setNeedsDoctorSetup(false);
+    // After setup is complete, the user will be redirected by the auth context
+  };
+
+  const handleDoctorSignupStart = () => {
+    console.log('Login: Doctor signup started');
+    setIsNewDoctorSignup(true);
+    setNeedsDoctorSetup(true);
   };
 
   // Show loading while checking auth status
@@ -116,7 +123,7 @@ export default function Login() {
             Streamlined Healthcare Management
           </p>
         </div>
-        <LoginForm onDoctorSignupStart={() => setIsNewDoctorSignup(true)} onSetupComplete={handleSetupComplete} />
+        <LoginForm onDoctorSignupStart={handleDoctorSignupStart} onSetupComplete={handleSetupComplete} />
         <p className="text-center mt-6 text-sm text-gray-500">
           © 2025 Chlora. All rights reserved.
         </p>
