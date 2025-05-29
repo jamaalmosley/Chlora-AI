@@ -22,8 +22,8 @@ export default function Login() {
     
     // Check if authenticated doctor needs setup
     if (isAuthenticated && !isLoading && profile && profile.role === 'doctor') {
-      console.log('Login: Checking if doctor needs setup');
-      checkDoctorSetup();
+      console.log('Login: Checking if doctor needs practice setup');
+      checkDoctorPracticeSetup();
       return;
     }
     
@@ -50,28 +50,29 @@ export default function Login() {
     }
   }, [isAuthenticated, profile, isLoading, navigate, isNewDoctorSignup, needsDoctorSetup]);
 
-  const checkDoctorSetup = async () => {
+  const checkDoctorPracticeSetup = async () => {
     if (!profile) return;
     
     try {
-      const { data: doctorData, error } = await supabase
-        .from('doctors')
-        .select('id')
+      // Check if doctor is associated with any practice (via staff table)
+      const { data: staffData, error } = await supabase
+        .from('staff')
+        .select('id, practice_id')
         .eq('user_id', profile.id)
         .single();
 
       if (error && error.code === 'PGRST116') {
-        // No doctor record found, needs setup
-        console.log('Login: Doctor needs setup');
+        // No staff record found, needs practice setup
+        console.log('Login: Doctor needs practice setup');
         setNeedsDoctorSetup(true);
         setIsNewDoctorSignup(true);
-      } else if (doctorData) {
-        // Doctor record exists, can proceed to dashboard
-        console.log('Login: Doctor setup complete, redirecting');
+      } else if (staffData) {
+        // Doctor is associated with a practice, can proceed to dashboard
+        console.log('Login: Doctor practice setup complete, redirecting');
         navigate("/doctor", { replace: true });
       }
     } catch (err) {
-      console.error('Error checking doctor setup:', err);
+      console.error('Error checking doctor practice setup:', err);
     }
   };
 
