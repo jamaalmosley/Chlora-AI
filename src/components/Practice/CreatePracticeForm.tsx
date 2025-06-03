@@ -43,7 +43,7 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
     try {
       setIsLoading(true);
 
-      // Create practice first
+      // Create practice first (this should work without RLS issues)
       console.log('Creating practice with data:', {
         name: practiceName,
         address: practiceAddress,
@@ -69,7 +69,7 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
 
       console.log('Practice created successfully:', practiceData);
 
-      // Update doctor record - always create/update for demo
+      // Update doctor record using upsert to avoid conflicts
       console.log('Updating doctor record with:', { specialty, licenseNumber });
       const { error: doctorError } = await supabase
         .from('doctors')
@@ -85,8 +85,8 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
       }
       console.log('Doctor record updated successfully');
 
-      // Add doctor as admin staff to the practice using the security definer function
-      console.log('Adding user as admin staff to practice using function:', practiceData.id);
+      // Use the security definer function to create staff record and bypass RLS
+      console.log('Creating staff record using security definer function');
       
       const { data: staffResult, error: staffError } = await supabase
         .rpc('create_staff_record', {
