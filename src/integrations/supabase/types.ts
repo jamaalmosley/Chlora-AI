@@ -389,6 +389,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      user_can_manage_practice: {
+        Args: { p_practice_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
