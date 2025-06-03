@@ -17,15 +17,15 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Practice creation form
-  const [practiceName, setPracticeName] = useState('');
-  const [practiceAddress, setPracticeAddress] = useState('');
-  const [practicePhone, setPracticePhone] = useState('');
-  const [practiceEmail, setPracticeEmail] = useState('');
+  // Practice creation form - with demo defaults
+  const [practiceName, setPracticeName] = useState('Demo Medical Center');
+  const [practiceAddress, setPracticeAddress] = useState('123 Demo Street, Demo City, DC 12345');
+  const [practicePhone, setPracticePhone] = useState('(555) 123-4567');
+  const [practiceEmail, setPracticeEmail] = useState('contact@demo-medical.com');
 
   // Doctor details - made optional for demo
   const [specialty, setSpecialty] = useState('General Practice');
-  const [licenseNumber, setLicenseNumber] = useState('DEMO-LICENSE');
+  const [licenseNumber, setLicenseNumber] = useState('DEMO-LICENSE-12345');
 
   const handleCreatePractice = async () => {
     if (!user) {
@@ -64,7 +64,7 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
 
       if (practiceError) {
         console.error('Practice creation error:', practiceError);
-        throw practiceError;
+        throw new Error(`Failed to create practice: ${practiceError.message}`);
       }
 
       console.log('Practice created successfully:', practiceData);
@@ -81,7 +81,7 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
 
       if (doctorError) {
         console.error('Doctor update error:', doctorError);
-        throw doctorError;
+        throw new Error(`Failed to update doctor record: ${doctorError.message}`);
       }
       console.log('Doctor record updated successfully');
 
@@ -98,7 +98,7 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
 
       if (staffError) {
         console.error('Staff creation error:', staffError);
-        throw staffError;
+        throw new Error(`Failed to create staff record: ${staffError.message}`);
       }
 
       console.log('Staff record created successfully with ID:', staffResult);
@@ -128,6 +128,9 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
         <CardTitle className="text-center text-medical-primary">
           Create Your Practice
         </CardTitle>
+        <p className="text-center text-sm text-gray-600">
+          Demo form - all fields are pre-filled with sample data
+        </p>
       </CardHeader>
       <CardContent className="space-y-6">
         <DoctorDetailsForm
