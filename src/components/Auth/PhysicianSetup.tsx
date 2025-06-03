@@ -3,13 +3,11 @@ import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Building, UserCheck } from "lucide-react";
+import { PracticeOwnershipSelection } from "./PracticeOwnershipSelection";
+import { DoctorDetailsForm } from "./DoctorDetailsForm";
+import { PracticeDetailsForm } from "./PracticeDetailsForm";
 
 interface PhysicianSetupProps {
   onComplete: () => void;
@@ -139,55 +137,11 @@ export function PhysicianSetup({ onComplete }: PhysicianSetupProps) {
 
   if (step === 1) {
     return (
-      <Card className="w-full max-w-lg mx-auto">
-        <CardHeader>
-          <CardTitle className="text-center text-medical-primary">
-            Practice Setup
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <Label className="text-base font-medium">Do you own a practice or work for someone else?</Label>
-            <RadioGroup
-              value={practiceOwnership}
-              onValueChange={(value) => setPracticeOwnership(value as 'owner' | 'employee')}
-              className="mt-3"
-            >
-              <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-gray-50">
-                <RadioGroupItem value="owner" id="owner" />
-                <Label htmlFor="owner" className="flex-1 cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <Building className="h-5 w-5 text-medical-primary" />
-                    <div>
-                      <div className="font-medium">I own a practice</div>
-                      <div className="text-sm text-gray-600">Create and manage your own practice</div>
-                    </div>
-                  </div>
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-gray-50">
-                <RadioGroupItem value="employee" id="employee" />
-                <Label htmlFor="employee" className="flex-1 cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <UserCheck className="h-5 w-5 text-medical-primary" />
-                    <div>
-                      <div className="font-medium">I work for someone else</div>
-                      <div className="text-sm text-gray-600">Join an existing practice</div>
-                    </div>
-                  </div>
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-          
-          <Button 
-            onClick={() => setStep(2)} 
-            className="w-full bg-medical-primary hover:bg-medical-dark"
-          >
-            Continue
-          </Button>
-        </CardContent>
-      </Card>
+      <PracticeOwnershipSelection
+        practiceOwnership={practiceOwnership}
+        setPracticeOwnership={setPracticeOwnership}
+        onContinue={() => setStep(2)}
+      />
     );
   }
 
@@ -199,83 +153,24 @@ export function PhysicianSetup({ onComplete }: PhysicianSetupProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Doctor Information */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Doctor Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="specialty">Medical Specialty</Label>
-              <Input
-                id="specialty"
-                value={specialty}
-                onChange={(e) => setSpecialty(e.target.value)}
-                placeholder="e.g., Cardiology, Orthopedics"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="license">License Number</Label>
-              <Input
-                id="license"
-                value={licenseNumber}
-                onChange={(e) => setLicenseNumber(e.target.value)}
-                placeholder="Your medical license number"
-                required
-              />
-            </div>
-          </div>
-        </div>
+        <DoctorDetailsForm
+          specialty={specialty}
+          setSpecialty={setSpecialty}
+          licenseNumber={licenseNumber}
+          setLicenseNumber={setLicenseNumber}
+        />
 
-        {/* Practice Information (only if owner) */}
         {practiceOwnership === 'owner' && (
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Practice Information</h3>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="practice-name">Practice Name</Label>
-                <Input
-                  id="practice-name"
-                  value={practiceName}
-                  onChange={(e) => setPracticeName(e.target.value)}
-                  placeholder="e.g., Smith Medical Center"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="practice-address">Address</Label>
-                <Textarea
-                  id="practice-address"
-                  value={practiceAddress}
-                  onChange={(e) => setPracticeAddress(e.target.value)}
-                  placeholder="Full practice address"
-                  rows={3}
-                />
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="practice-phone">Phone Number</Label>
-                  <Input
-                    id="practice-phone"
-                    value={practicePhone}
-                    onChange={(e) => setPracticePhone(e.target.value)}
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="practice-email">Email</Label>
-                  <Input
-                    id="practice-email"
-                    type="email"
-                    value={practiceEmail}
-                    onChange={(e) => setPracticeEmail(e.target.value)}
-                    placeholder="contact@practice.com"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          <PracticeDetailsForm
+            practiceName={practiceName}
+            setPracticeName={setPracticeName}
+            practiceAddress={practiceAddress}
+            setPracticeAddress={setPracticeAddress}
+            practicePhone={practicePhone}
+            setPracticePhone={setPracticePhone}
+            practiceEmail={practiceEmail}
+            setPracticeEmail={setPracticeEmail}
+          />
         )}
 
         {practiceOwnership === 'employee' && (
