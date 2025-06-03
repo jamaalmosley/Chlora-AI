@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setTimeout(async () => {
               await fetchProfile(session.user.id);
               setIsLoading(false);
-            }, 1000); // Increased timeout to ensure profile is created
+            }, 1000);
           } else {
             fetchProfile(session.user.id).finally(() => {
               setIsLoading(false);

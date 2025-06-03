@@ -28,12 +28,29 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
   const [licenseNumber, setLicenseNumber] = useState('');
 
   const handleCreatePractice = async () => {
-    if (!user) return;
+    if (!user) {
+      console.error('No user found');
+      toast({
+        title: "Error",
+        description: "You must be logged in to create a practice.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log('Starting practice creation for user:', user.id);
 
     try {
       setIsLoading(true);
 
       // Create practice first
+      console.log('Creating practice with data:', {
+        name: practiceName,
+        address: practiceAddress,
+        phone: practicePhone,
+        email: practiceEmail,
+      });
+
       const { data: practiceData, error: practiceError } = await supabase
         .from('practices')
         .insert({
@@ -45,10 +62,16 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
         .select()
         .single();
 
-      if (practiceError) throw practiceError;
+      if (practiceError) {
+        console.error('Practice creation error:', practiceError);
+        throw practiceError;
+      }
+
+      console.log('Practice created successfully:', practiceData);
 
       // Update doctor record if needed
       if (specialty && licenseNumber) {
+        console.log('Updating doctor record with:', { specialty, licenseNumber });
         const { error: doctorError } = await supabase
           .from('doctors')
           .upsert({
@@ -57,10 +80,17 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
             license_number: licenseNumber,
           });
 
-        if (doctorError) throw doctorError;
+        if (doctorError) {
+          console.error('Doctor update error:', doctorError);
+          throw doctorError;
+        }
+        console.log('Doctor record updated successfully');
       }
 
-      // Add doctor as admin staff to the practice
+      // Add doctor as admin staff to the practice - using direct insert to avoid RLS issues
+      console.log('Adding user as admin staff to practice:', practiceData.id);
+      
+      // Try a simpler approach first - just insert without complex permissions array
       const { error: staffError } = await supabase
         .from('staff')
         .insert({
@@ -68,10 +98,14 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
           practice_id: practiceData.id,
           role: 'admin',
           department: 'Administration',
-          permissions: ['view_patients', 'manage_patients', 'manage_staff', 'schedule_appointments', 'manage_practice'],
         });
 
-      if (staffError) throw staffError;
+      if (staffError) {
+        console.error('Staff creation error:', staffError);
+        throw staffError;
+      }
+
+      console.log('Staff record created successfully');
 
       toast({
         title: "Success",
@@ -81,9 +115,10 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
       onPracticeCreated();
     } catch (err) {
       console.error('Error creating practice:', err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to create practice. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to create practice. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
