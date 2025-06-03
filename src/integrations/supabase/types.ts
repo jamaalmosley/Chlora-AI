@@ -376,7 +376,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_staff_record: {
+        Args: {
+          p_user_id: string
+          p_practice_id: string
+          p_role: string
+          p_department?: string
+        }
+        Returns: string
+      }
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

@@ -85,16 +85,15 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
       }
       console.log('Doctor record updated successfully');
 
-      // Add doctor as admin staff to the practice
-      console.log('Adding user as admin staff to practice:', practiceData.id);
+      // Add doctor as admin staff to the practice using the security definer function
+      console.log('Adding user as admin staff to practice using function:', practiceData.id);
       
-      const { error: staffError } = await supabase
-        .from('staff')
-        .insert({
-          user_id: user.id,
-          practice_id: practiceData.id,
-          role: 'admin',
-          department: 'Administration',
+      const { data: staffResult, error: staffError } = await supabase
+        .rpc('create_staff_record', {
+          p_user_id: user.id,
+          p_practice_id: practiceData.id,
+          p_role: 'admin',
+          p_department: 'Administration'
         });
 
       if (staffError) {
@@ -102,7 +101,7 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
         throw staffError;
       }
 
-      console.log('Staff record created successfully');
+      console.log('Staff record created successfully with ID:', staffResult);
 
       toast({
         title: "Success",
