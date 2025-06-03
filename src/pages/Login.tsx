@@ -10,6 +10,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [isNewDoctorSignup, setIsNewDoctorSignup] = useState(false);
   const [needsDoctorSetup, setNeedsDoctorSetup] = useState(false);
+  const [hasCheckedSetup, setHasCheckedSetup] = useState(false);
 
   useEffect(() => {
     console.log('Login component - isAuthenticated:', isAuthenticated, 'profile:', profile, 'isLoading:', isLoading);
@@ -20,15 +21,20 @@ export default function Login() {
       return;
     }
     
-    // Check if authenticated doctor needs setup
-    if (isAuthenticated && !isLoading && profile && profile.role === 'doctor') {
+    // Only proceed if not loading and we have authentication data
+    if (isLoading || !isAuthenticated || !profile) {
+      return;
+    }
+
+    // Check if authenticated doctor needs setup (only once)
+    if (profile.role === 'doctor' && !hasCheckedSetup) {
       console.log('Login: Checking if doctor needs practice setup');
       checkDoctorPracticeSetup();
       return;
     }
     
     // Only redirect if user is authenticated, not loading, has a profile, and NOT a doctor needing setup
-    if (isAuthenticated && !isLoading && profile && !needsDoctorSetup) {
+    if (!needsDoctorSetup && hasCheckedSetup) {
       console.log('Login: User is authenticated, preparing redirect');
       
       const userRole = profile.role;
@@ -48,7 +54,7 @@ export default function Login() {
         navigate("/patient", { replace: true });
       }
     }
-  }, [isAuthenticated, profile, isLoading, navigate, isNewDoctorSignup, needsDoctorSetup]);
+  }, [isAuthenticated, profile, isLoading, navigate, isNewDoctorSignup, needsDoctorSetup, hasCheckedSetup]);
 
   const checkDoctorPracticeSetup = async () => {
     if (!profile) return;
@@ -61,6 +67,8 @@ export default function Login() {
         .eq('user_id', profile.id)
         .single();
 
+      setHasCheckedSetup(true);
+
       if (error && error.code === 'PGRST116') {
         // No staff record found, needs practice setup
         console.log('Login: Doctor needs practice setup');
@@ -69,10 +77,11 @@ export default function Login() {
       } else if (staffData) {
         // Doctor is associated with a practice, can proceed to dashboard
         console.log('Login: Doctor practice setup complete, redirecting');
-        navigate("/doctor", { replace: true });
+        // The redirect will happen in the next useEffect cycle
       }
     } catch (err) {
       console.error('Error checking doctor practice setup:', err);
+      setHasCheckedSetup(true);
     }
   };
 
@@ -80,7 +89,7 @@ export default function Login() {
     console.log('Login: Setup completed, resetting flags');
     setIsNewDoctorSignup(false);
     setNeedsDoctorSetup(false);
-    // After setup is complete, the user will be redirected by the auth context
+    setHasCheckedSetup(false); // Reset to recheck setup status
   };
 
   const handleDoctorSignupStart = () => {
@@ -101,7 +110,7 @@ export default function Login() {
   }
 
   // If already authenticated and not a new doctor signup, show a brief loading message while redirecting
-  if (isAuthenticated && profile && !isNewDoctorSignup && !needsDoctorSetup) {
+  if (isAuthenticated && profile && !isNewDoctorSignup && !needsDoctorSetup && hasCheckedSetup) {
     console.log('Login: User authenticated, showing redirect screen');
     return (
       <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">

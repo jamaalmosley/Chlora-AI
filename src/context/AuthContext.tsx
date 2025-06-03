@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event: AuthChangeEvent, session) => {
+      (event: AuthChangeEvent, session) => {
         console.log('AuthContext: Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
@@ -73,10 +73,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setTimeout(async () => {
               await fetchProfile(session.user.id);
               setIsLoading(false);
-            }, 500);
+            }, 1000); // Increased timeout to ensure profile is created
           } else {
-            await fetchProfile(session.user.id);
-            setIsLoading(false);
+            fetchProfile(session.user.id).finally(() => {
+              setIsLoading(false);
+            });
           }
         } else {
           setProfile(null);

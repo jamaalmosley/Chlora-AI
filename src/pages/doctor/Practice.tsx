@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Building, Save, Users } from "lucide-react";
+import { Building, Save, Users, Plus } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CreatePracticeForm } from "@/components/Practice/CreatePracticeForm";
 
 interface Practice {
   id: string;
@@ -41,6 +42,8 @@ export default function DoctorPractice() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [noPracticeFound, setNoPracticeFound] = useState(false);
 
   const fetchPracticeData = async () => {
     if (!user) return;
@@ -58,9 +61,13 @@ export default function DoctorPractice() {
         .single();
 
       if (staffError || !staffData) {
-        setError('You are not assigned to any practice');
+        console.log('No staff record found, doctor needs to create or join a practice');
+        setNoPracticeFound(true);
+        setIsLoading(false);
         return;
       }
+
+      setNoPracticeFound(false);
 
       // Check if user can manage practice
       const canManagePractice = staffData.role === 'admin' || 
@@ -159,6 +166,11 @@ export default function DoctorPractice() {
     }
   };
 
+  const handlePracticeCreated = () => {
+    setShowCreateForm(false);
+    fetchPracticeData(); // Refresh the data
+  };
+
   useEffect(() => {
     fetchPracticeData();
   }, [user]);
@@ -181,6 +193,56 @@ export default function DoctorPractice() {
     );
   }
 
+  // Show create practice form if no practice found or user wants to create one
+  if (noPracticeFound || showCreateForm) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex items-center gap-3 mb-6">
+          <Building className="h-8 w-8 text-medical-primary" />
+          <h1 className="text-3xl font-bold text-medical-primary">My Practice</h1>
+        </div>
+
+        {noPracticeFound && !showCreateForm && (
+          <Card>
+            <CardHeader>
+              <CardTitle>No Practice Found</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p>You are not currently associated with any practice. You can:</p>
+              <div className="flex gap-4">
+                <Button 
+                  onClick={() => setShowCreateForm(true)}
+                  className="bg-medical-primary hover:bg-medical-dark"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create New Practice
+                </Button>
+                <Button variant="outline">
+                  Request to Join Existing Practice
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {showCreateForm && (
+          <div className="space-y-4">
+            {!noPracticeFound && (
+              <Button 
+                variant="outline" 
+                onClick={() => setShowCreateForm(false)}
+                className="mb-4"
+              >
+                ← Back to Practice View
+              </Button>
+            )}
+            <CreatePracticeForm onPracticeCreated={handlePracticeCreated} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (!practice) {
     return (
       <div className="container mx-auto p-6">
@@ -193,9 +255,20 @@ export default function DoctorPractice() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-3 mb-6">
-        <Building className="h-8 w-8 text-medical-primary" />
-        <h1 className="text-3xl font-bold text-medical-primary">My Practice</h1>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Building className="h-8 w-8 text-medical-primary" />
+          <h1 className="text-3xl font-bold text-medical-primary">My Practice</h1>
+        </div>
+        {isOwner && (
+          <Button 
+            variant="outline"
+            onClick={() => setShowCreateForm(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create Additional Practice
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
