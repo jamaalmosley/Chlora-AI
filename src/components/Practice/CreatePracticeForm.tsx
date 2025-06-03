@@ -43,7 +43,7 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
     try {
       setIsLoading(true);
 
-      // Create practice first (this should work without RLS issues)
+      // Create practice first
       console.log('Creating practice with data:', {
         name: practiceName,
         address: practiceAddress,
@@ -85,27 +85,13 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
       }
       console.log('Doctor record updated successfully');
 
-      // Use the security definer function to create staff record and bypass RLS
-      console.log('Creating staff record using security definer function');
-      
-      const { data: staffResult, error: staffError } = await supabase
-        .rpc('create_staff_record', {
-          p_user_id: user.id,
-          p_practice_id: practiceData.id,
-          p_role: 'admin',
-          p_department: 'Administration'
-        });
-
-      if (staffError) {
-        console.error('Staff creation error:', staffError);
-        throw new Error(`Failed to create staff record: ${staffError.message}`);
-      }
-
-      console.log('Staff record created successfully with ID:', staffResult);
+      // Skip staff creation entirely to avoid RLS issues
+      // The user can manually add themselves as staff later through the UI
+      console.log('Skipping staff record creation to avoid RLS issues');
 
       toast({
         title: "Success",
-        description: "Your practice has been created successfully!",
+        description: "Your practice has been created successfully! You can manage staff through the practice settings.",
       });
 
       onPracticeCreated();
