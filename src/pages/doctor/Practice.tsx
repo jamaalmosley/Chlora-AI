@@ -7,9 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Building, Save, Users, Plus } from "lucide-react";
+import { Building, Save, Users, Plus, DollarSign, BarChart, Settings, Calendar, FileText } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CreatePracticeForm } from "@/components/Practice/CreatePracticeForm";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 interface Practice {
   id: string;
@@ -220,7 +222,14 @@ export default function DoctorPractice() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Building className="h-8 w-8 text-medical-primary" />
-          <h1 className="text-3xl font-bold text-medical-primary">My Practice</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-medical-primary">My Practice</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant={isOwner ? "default" : "secondary"}>
+                {isOwner ? "Owner" : "Staff Member"}
+              </Badge>
+            </div>
+          </div>
         </div>
         {isOwner && (
           <Button 
@@ -233,112 +242,300 @@ export default function DoctorPractice() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Practice Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Practice Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="practice-name">Practice Name</Label>
-              <Input
-                id="practice-name"
-                value={practice.name}
-                onChange={(e) => setPractice({...practice, name: e.target.value})}
-                disabled={!isOwner}
-              />
-            </div>
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="staff">Staff</TabsTrigger>
+          {isOwner && <TabsTrigger value="financials">Financials</TabsTrigger>}
+          <TabsTrigger value="schedule">Schedule</TabsTrigger>
+          {isOwner && <TabsTrigger value="settings">Settings</TabsTrigger>}
+        </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="practice-address">Address</Label>
-              <Textarea
-                id="practice-address"
-                value={practice.address || ''}
-                onChange={(e) => setPractice({...practice, address: e.target.value})}
-                rows={3}
-                disabled={!isOwner}
-              />
-            </div>
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Practice Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Practice Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="practice-name">Practice Name</Label>
+                  <Input
+                    id="practice-name"
+                    value={practice.name}
+                    onChange={(e) => setPractice({...practice, name: e.target.value})}
+                    disabled={!isOwner}
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="practice-phone">Phone Number</Label>
-              <Input
-                id="practice-phone"
-                value={practice.phone || ''}
-                onChange={(e) => setPractice({...practice, phone: e.target.value})}
-                disabled={!isOwner}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="practice-address">Address</Label>
+                  <Textarea
+                    id="practice-address"
+                    value={practice.address || ''}
+                    onChange={(e) => setPractice({...practice, address: e.target.value})}
+                    rows={3}
+                    disabled={!isOwner}
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="practice-email">Email</Label>
-              <Input
-                id="practice-email"
-                type="email"
-                value={practice.email || ''}
-                onChange={(e) => setPractice({...practice, email: e.target.value})}
-                disabled={!isOwner}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="practice-phone">Phone Number</Label>
+                  <Input
+                    id="practice-phone"
+                    value={practice.phone || ''}
+                    onChange={(e) => setPractice({...practice, phone: e.target.value})}
+                    disabled={!isOwner}
+                  />
+                </div>
 
-            {isOwner && (
-              <Button 
-                onClick={handleSavePractice}
-                disabled={isSaving}
-                className="w-full bg-medical-primary hover:bg-medical-dark"
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {isSaving ? "Saving..." : "Save Changes (Demo)"}
-              </Button>
-            )}
+                <div className="space-y-2">
+                  <Label htmlFor="practice-email">Email</Label>
+                  <Input
+                    id="practice-email"
+                    type="email"
+                    value={practice.email || ''}
+                    onChange={(e) => setPractice({...practice, email: e.target.value})}
+                    disabled={!isOwner}
+                  />
+                </div>
 
-            {!isOwner && (
-              <Alert>
-                <AlertDescription>
-                  You don't have permission to edit practice information. Contact your practice administrator.
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
+                {isOwner && (
+                  <Button 
+                    onClick={handleSavePractice}
+                    disabled={isSaving}
+                    className="w-full bg-medical-primary hover:bg-medical-dark"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    {isSaving ? "Saving..." : "Save Changes (Demo)"}
+                  </Button>
+                )}
 
-        {/* Staff Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Staff Members ({staffMembers.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {staffMembers.map((staff) => (
-                <div key={staff.id} className="flex items-center justify-between p-3 border rounded-lg">
+                {!isOwner && (
+                  <Alert>
+                    <AlertDescription>
+                      You don't have permission to edit practice information. Contact your practice administrator.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Quick Stats */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Practice Overview</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">12</div>
+                    <div className="text-sm text-gray-600">Total Patients</div>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{staffMembers.length + 1}</div>
+                    <div className="text-sm text-gray-600">Staff Members</div>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">8</div>
+                    <div className="text-sm text-gray-600">Today's Appointments</div>
+                  </div>
+                  <div className="text-center p-4 bg-orange-50 rounded-lg">
+                    <div className="text-2xl font-bold text-orange-600">3</div>
+                    <div className="text-sm text-gray-600">Pending Tasks</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="staff" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Staff Members ({staffMembers.length + 1})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {/* Current user */}
+                <div className="flex items-center justify-between p-3 border rounded-lg bg-blue-50">
                   <div>
-                    <div className="font-medium">
-                      {staff.profiles?.first_name} {staff.profiles?.last_name}
-                    </div>
-                    <div className="text-sm text-gray-600 capitalize">
-                      {staff.role} {staff.department && `• ${staff.department}`}
+                    <div className="font-medium">You ({isOwner ? 'Owner' : 'Staff'})</div>
+                    <div className="text-sm text-gray-600">
+                      {isOwner ? 'Practice Owner' : 'Doctor'}
                     </div>
                   </div>
-                  <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                    {staff.status}
+                  <Badge variant="default">Active</Badge>
+                </div>
+
+                {staffMembers.map((staff) => (
+                  <div key={staff.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <div className="font-medium">
+                        {staff.profiles?.first_name} {staff.profiles?.last_name}
+                      </div>
+                      <div className="text-sm text-gray-600 capitalize">
+                        {staff.role} {staff.department && `• ${staff.department}`}
+                      </div>
+                    </div>
+                    <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                      {staff.status}
+                    </div>
                   </div>
-                </div>
-              ))}
-              
-              {staffMembers.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <p>Demo mode - No staff data to display</p>
-                  <p className="text-xs mt-2">In production, staff would be managed through practice settings.</p>
-                </div>
-              )}
+                ))}
+                
+                {staffMembers.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>Demo mode - No additional staff members</p>
+                    {isOwner && (
+                      <Button variant="outline" className="mt-2">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Staff Member
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {isOwner && (
+          <TabsContent value="financials" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Revenue
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">$45,230</div>
+                  <div className="text-sm text-gray-600">This month</div>
+                  <div className="text-xs text-green-600 mt-1">+12% from last month</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart className="h-5 w-5" />
+                    Expenses
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-600">$23,450</div>
+                  <div className="text-sm text-gray-600">This month</div>
+                  <div className="text-xs text-red-600 mt-1">+5% from last month</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Net Profit
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">$21,780</div>
+                  <div className="text-sm text-gray-600">This month</div>
+                  <div className="text-xs text-blue-600 mt-1">+18% from last month</div>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Transactions (Demo)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-3 border rounded">
+                    <div>
+                      <div className="font-medium">Patient Payment - John Doe</div>
+                      <div className="text-sm text-gray-600">Insurance claim processed</div>
+                    </div>
+                    <div className="text-green-600 font-medium">+$450</div>
+                  </div>
+                  <div className="flex justify-between items-center p-3 border rounded">
+                    <div>
+                      <div className="font-medium">Medical Supplies</div>
+                      <div className="text-sm text-gray-600">Monthly supply order</div>
+                    </div>
+                    <div className="text-red-600 font-medium">-$1,200</div>
+                  </div>
+                  <div className="flex justify-between items-center p-3 border rounded">
+                    <div>
+                      <div className="font-medium">Equipment Rental</div>
+                      <div className="text-sm text-gray-600">MRI equipment lease</div>
+                    </div>
+                    <div className="text-red-600 font-medium">-$3,500</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        <TabsContent value="schedule" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Practice Schedule
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="text-center py-8 text-gray-500">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p>Schedule management coming soon</p>
+                  <p className="text-sm mt-2">View your personal schedule in the sidebar</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {isOwner && (
+          <TabsContent value="settings" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Practice Settings
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button variant="outline" className="h-20 flex-col">
+                    <Users className="h-6 w-6 mb-2" />
+                    Manage Staff Permissions
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col">
+                    <FileText className="h-6 w-6 mb-2" />
+                    Practice Policies
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col">
+                    <Calendar className="h-6 w-6 mb-2" />
+                    Operating Hours
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col">
+                    <DollarSign className="h-6 w-6 mb-2" />
+                    Billing Settings
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }
