@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CreatePracticeForm } from "@/components/Practice/CreatePracticeForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { AddStaffDialog } from "@/components/Staff/AddStaffDialog";
 
 interface Practice {
   id: string;
@@ -45,6 +46,7 @@ export default function DoctorPractice() {
   const [isOwner, setIsOwner] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [noPracticeFound, setNoPracticeFound] = useState(false);
+  const [showAddStaffDialog, setShowAddStaffDialog] = useState(false);
 
   const fetchPracticeData = async () => {
     if (!user) return;
@@ -126,6 +128,12 @@ export default function DoctorPractice() {
   const handlePracticeCreated = () => {
     setShowCreateForm(false);
     fetchPracticeData(); // Refresh the data
+  };
+
+  const handleStaffAdded = () => {
+    // For demo purposes, just show a success message
+    console.log('DoctorPractice: Staff member added successfully');
+    fetchPracticeData(); // Refresh data
   };
 
   useEffect(() => {
@@ -354,9 +362,20 @@ export default function DoctorPractice() {
         <TabsContent value="staff" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Staff Members ({staffMembers.length + 1})
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Staff Members ({staffMembers.length + 1})
+                </div>
+                {isOwner && (
+                  <Button 
+                    onClick={() => setShowAddStaffDialog(true)}
+                    className="bg-medical-primary hover:bg-medical-dark"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Staff Member
+                  </Button>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -392,10 +411,7 @@ export default function DoctorPractice() {
                   <div className="text-center py-8 text-gray-500">
                     <p>Demo mode - No additional staff members</p>
                     {isOwner && (
-                      <Button variant="outline" className="mt-2">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Staff Member
-                      </Button>
+                      <p className="text-sm mt-2">Click "Add Staff Member" to get started</p>
                     )}
                   </div>
                 )}
@@ -536,6 +552,13 @@ export default function DoctorPractice() {
           </TabsContent>
         )}
       </Tabs>
+
+      <AddStaffDialog
+        open={showAddStaffDialog}
+        onOpenChange={setShowAddStaffDialog}
+        onStaffAdded={handleStaffAdded}
+        practiceId={practice.id}
+      />
     </div>
   );
 }

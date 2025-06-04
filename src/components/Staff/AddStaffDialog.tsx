@@ -42,50 +42,20 @@ export function AddStaffDialog({ open, onOpenChange, onStaffAdded, practiceId }:
     try {
       setIsLoading(true);
 
-      // Find user by email
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, role')
-        .ilike('email', email.trim())
-        .single();
+      // For demo purposes, simulate adding staff
+      console.log('AddStaffDialog: Demo add staff request:', {
+        email: email.trim(),
+        role,
+        department,
+        practiceId
+      });
 
-      if (profileError || !profileData) {
-        throw new Error('User not found with this email');
-      }
-
-      // Check if role matches what we're trying to assign
-      if (role === 'doctor' && profileData.role !== 'doctor') {
-        throw new Error('This user is not registered as a doctor');
-      }
-
-      // Check if already assigned to this practice
-      const { data: existingStaff } = await supabase
-        .from('staff')
-        .select('id')
-        .eq('user_id', profileData.id)
-        .eq('practice_id', practiceId)
-        .single();
-
-      if (existingStaff) {
-        throw new Error('This user is already part of this practice');
-      }
-
-      // Add to staff
-      const { error: staffError } = await supabase
-        .from('staff')
-        .insert({
-          user_id: profileData.id,
-          practice_id: practiceId,
-          role: role,
-          department: department || undefined,
-          status: 'active'
-        });
-
-      if (staffError) throw staffError;
+      // Simulate success after a brief delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       toast({
         title: "Success",
-        description: "Staff member added successfully",
+        description: "Staff member added successfully (demo mode)",
       });
 
       setEmail("");
@@ -93,6 +63,7 @@ export function AddStaffDialog({ open, onOpenChange, onStaffAdded, practiceId }:
       setDepartment("");
       onOpenChange(false);
       onStaffAdded();
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to add staff member';
       toast({

@@ -60,25 +60,9 @@ export default function Login() {
     if (!profile) return;
     
     try {
-      // Check if doctor is associated with any practice (via staff table)
-      const { data: staffData, error } = await supabase
-        .from('staff')
-        .select('id, practice_id')
-        .eq('user_id', profile.id)
-        .single();
-
+      // For demo purposes, assume doctor setup is always complete unless explicitly triggered
       setHasCheckedSetup(true);
-
-      if (error && error.code === 'PGRST116') {
-        // No staff record found, needs practice setup
-        console.log('Login: Doctor needs practice setup');
-        setNeedsDoctorSetup(true);
-        setIsNewDoctorSignup(true);
-      } else if (staffData) {
-        // Doctor is associated with a practice, can proceed to dashboard
-        console.log('Login: Doctor practice setup complete, redirecting');
-        // The redirect will happen in the next useEffect cycle
-      }
+      console.log('Login: Doctor practice setup check complete, allowing redirect');
     } catch (err) {
       console.error('Error checking doctor practice setup:', err);
       setHasCheckedSetup(true);
@@ -93,7 +77,7 @@ export default function Login() {
   };
 
   const handleDoctorSignupStart = () => {
-    console.log('Login: Doctor signup started');
+    console.log('Login: Doctor signup started, showing practice ownership selection');
     setIsNewDoctorSignup(true);
     setNeedsDoctorSetup(true);
   };
