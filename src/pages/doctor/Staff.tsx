@@ -3,13 +3,12 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Plus, Mail, Search } from "lucide-react";
+import { Users, Plus, Mail, UserPlus, Clock } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AddStaffDialog } from "@/components/Staff/AddStaffDialog";
 
 interface StaffProfile {
   first_name?: string;
@@ -27,18 +26,36 @@ interface StaffMember {
   profiles?: StaffProfile;
 }
 
+interface PendingInvitation {
+  id: string;
+  email: string;
+  role: string;
+  department?: string;
+  created_at: string;
+  expires_at: string;
+}
+
+interface JoinRequest {
+  id: string;
+  requested_role: string;
+  message?: string;
+  created_at: string;
+  profiles?: StaffProfile;
+}
+
 export default function DoctorStaff() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
-  const [searchEmail, setSearchEmail] = useState("");
-  const [selectedRole, setSelectedRole] = useState("nurse");
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSearching, setIsSearching] = useState(false);
   const [practiceId, setPracticeId] = useState<string | null>(null);
+  const [practiceName, setPracticeName] = useState<string>("");
   const [canManageStaff, setCanManageStaff] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
-  const fetchStaffData = async () => {
+  const fetchAllData = async () => {
     if (!user) return;
 
     try {
@@ -47,7 +64,12 @@ export default function DoctorStaff() {
       // Get doctor's practice and permissions
       const { data: staffData, error: staffError } = await supabase
         .from('staff')
-        .select('practice_id, role, permissions')
+        .select(`
+          practice_id, 
+          role, 
+          permissions,
+          practices(name)
+        `)
         .eq('user_id', user.id)
         .eq('status', 'active')
         .single();
@@ -58,6 +80,7 @@ export default function DoctorStaff() {
       }
 
       setPracticeId(staffData.practice_id);
+      setPracticeName(staffData.practices?.name || "");
       
       // Check permissions
       const canManage = staffData.role === 'admin' || 
@@ -101,6 +124,49 @@ export default function DoctorStaff() {
 
       setStaffMembers(staffWithProfiles);
 
+      // Get pending invitations if user can manage staff
+      if (canManage) {
+        const { data: invitations } = await supabase
+          .from('practice_invitations')
+          .select('*')
+          .eq('practice_id', staffData.practice_id)
+          .eq('status', 'pending');
+
+        setPendingInvitations(invitations || []);
+
+        // Get join requests
+        const { data: requests } = await supabase
+          .from('practice_join_requests')
+          .select(`
+            id,
+            requested_role,
+            message,
+            created_at,
+            user_id
+          `)
+          .eq('practice_id', staffData.practice_id)
+          .eq('status', 'pending');
+
+        if (requests) {
+          // Get profiles for join requests
+          const requestsWithProfiles = await Promise.all(
+            requests.map(async (request) => {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('first_name, last_name, phone')
+                .eq('id', request.user_id)
+                .single();
+
+              return {
+                ...request,
+                profiles: profileData
+              };
+            })
+          );
+          setJoinRequests(requestsWithProfiles);
+        }
+      }
+
     } catch (err) {
       console.error('Unexpected error:', err);
       toast({
@@ -113,107 +179,68 @@ export default function DoctorStaff() {
     }
   };
 
-  const searchUsersByEmail = async () => {
-    if (!searchEmail.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter an email address",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const approveJoinRequest = async (requestId: string) => {
     try {
-      setIsSearching(true);
-      
-      // Search for users by email (this would typically be done via a function)
-      // For now, we'll search profiles
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, role')
-        .neq('role', 'patient'); // Exclude patients from staff search
+      const { data, error } = await supabase.rpc('approve_join_request', {
+        request_id: requestId
+      });
 
-      if (error) {
-        console.error('Search error:', error);
+      if (error) throw error;
+
+      const result = typeof data === 'string' ? JSON.parse(data) : data;
+
+      if (result.success) {
         toast({
-          title: "Error",
-          description: "Failed to search for users",
-          variant: "destructive",
+          title: "Success",
+          description: "Join request approved successfully",
         });
-        return;
+        fetchAllData();
+      } else {
+        throw new Error(result.error || 'Failed to approve request');
       }
 
-      // Filter to find matching email - in reality this would be done server-side
-      // For demo purposes, we'll just show all non-patient users
-      console.log('Search results:', profiles);
-      
-      toast({
-        title: "Search completed",
-        description: `Found ${profiles?.length || 0} potential staff members`,
-      });
-
-    } catch (err) {
-      console.error('Search error:', err);
+    } catch (err: any) {
+      console.error('Error approving join request:', err);
       toast({
         title: "Error",
-        description: "Failed to search for users",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const addStaffMember = async (userEmail: string) => {
-    if (!practiceId || !canManageStaff) return;
-
-    try {
-      // In a real implementation, we'd need a function to add staff by email
-      // This would involve finding the user by email and creating a staff record
-      
-      toast({
-        title: "Feature Note",
-        description: "Staff addition by email requires backend function implementation",
-      });
-
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to add staff member",
+        description: err.message || "Failed to approve join request",
         variant: "destructive",
       });
     }
   };
 
-  const updateStaffRole = async (staffId: string, newRole: string) => {
-    if (!canManageStaff) return;
-
+  const rejectJoinRequest = async (requestId: string) => {
     try {
       const { error } = await supabase
-        .from('staff')
-        .update({ role: newRole })
-        .eq('id', staffId);
+        .from('practice_join_requests')
+        .update({ 
+          status: 'rejected', 
+          reviewed_by: user?.id,
+          reviewed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', requestId);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Staff role updated successfully",
+        description: "Join request rejected",
       });
+      fetchAllData();
 
-      fetchStaffData();
-
-    } catch (err) {
+    } catch (err: any) {
+      console.error('Error rejecting join request:', err);
       toast({
         title: "Error",
-        description: "Failed to update staff role",
+        description: "Failed to reject join request",
         variant: "destructive",
       });
     }
   };
 
   useEffect(() => {
-    fetchStaffData();
+    fetchAllData();
   }, [user]);
 
   if (isLoading) {
@@ -248,42 +275,101 @@ export default function DoctorStaff() {
               Add Staff Member
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="staff-email">Email Address</Label>
-                <Input
-                  id="staff-email"
-                  type="email"
-                  placeholder="staff@example.com"
-                  value={searchEmail}
-                  onChange={(e) => setSearchEmail(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="staff-role">Role</Label>
-                <select
-                  id="staff-role"
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md"
-                >
-                  <option value="nurse">Nurse</option>
-                  <option value="doctor">Doctor</option>
-                  <option value="admin">Administrator</option>
-                  <option value="receptionist">Receptionist</option>
-                </select>
-              </div>
-              <div className="flex items-end">
-                <Button 
-                  onClick={searchUsersByEmail}
-                  disabled={isSearching}
-                  className="w-full bg-medical-primary hover:bg-medical-dark"
-                >
-                  <Search className="mr-2 h-4 w-4" />
-                  {isSearching ? "Searching..." : "Search & Add"}
-                </Button>
-              </div>
+          <CardContent>
+            <Button 
+              onClick={() => setShowAddDialog(true)}
+              className="bg-medical-primary hover:bg-medical-dark"
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              Send Invitation
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Join Requests */}
+      {canManageStaff && joinRequests.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Join Requests ({joinRequests.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {joinRequests.map((request) => (
+                <div key={request.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="font-medium">
+                        {request.profiles?.first_name} {request.profiles?.last_name}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Requested role: <Badge variant="outline">{request.requested_role}</Badge>
+                      </div>
+                      {request.message && (
+                        <div className="text-sm text-gray-600 mt-2">
+                          <strong>Message:</strong> {request.message}
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-500 mt-1">
+                        Requested: {new Date(request.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="space-x-2">
+                      <Button
+                        size="sm"
+                        onClick={() => approveJoinRequest(request.id)}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => rejectJoinRequest(request.id)}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pending Invitations */}
+      {canManageStaff && pendingInvitations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Pending Invitations ({pendingInvitations.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {pendingInvitations.map((invitation) => (
+                <div key={invitation.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="font-medium">{invitation.email}</div>
+                      <div className="text-sm text-gray-600">
+                        Role: <Badge variant="outline">{invitation.role}</Badge>
+                        {invitation.department && (
+                          <span className="ml-2">Department: {invitation.department}</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Expires: {new Date(invitation.expires_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <Badge variant="secondary">Pending</Badge>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -333,17 +419,6 @@ export default function DoctorStaff() {
                         {staff.status}
                       </Badge>
                     </div>
-                    {canManageStaff && staff.role !== 'admin' && (
-                      <div className="space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateStaffRole(staff.id, 'admin')}
-                        >
-                          Make Admin
-                        </Button>
-                      </div>
-                    )}
                   </div>
                 </div>
                 
@@ -370,6 +445,14 @@ export default function DoctorStaff() {
           </div>
         </CardContent>
       </Card>
+
+      <AddStaffDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onStaffAdded={fetchAllData}
+        practiceId={practiceId || ""}
+        practiceName={practiceName}
+      />
     </div>
   );
 }

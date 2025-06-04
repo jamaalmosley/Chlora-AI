@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -21,63 +22,62 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
-interface AddStaffDialogProps {
+interface JoinRequestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onStaffAdded: () => void;
   practiceId: string;
   practiceName: string;
 }
 
-export function AddStaffDialog({ open, onOpenChange, onStaffAdded, practiceId, practiceName }: AddStaffDialogProps) {
+export function JoinRequestDialog({ open, onOpenChange, practiceId, practiceName }: JoinRequestDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [email, setEmail] = useState("");
   const [role, setRole] = useState<string>("");
-  const [department, setDepartment] = useState("");
+  const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleAddStaff = async () => {
-    if (!user || !email.trim() || !role) return;
+  const handleSubmitRequest = async () => {
+    if (!user || !role.trim()) return;
 
     try {
       setIsLoading(true);
 
-      console.log('Sending staff invitation:', {
-        email: email.trim(),
-        role,
-        department,
+      console.log('Submitting join request:', {
         practiceId,
-        practiceName
+        userId: user.id,
+        role,
+        message
       });
 
-      const { data, error } = await supabase.functions.invoke('send-invitation', {
-        body: {
-          email: email.trim(),
-          role,
-          department: department.trim() || null,
-          practiceId,
-          practiceName
-        }
-      });
+      const { error } = await supabase
+        .from('practice_join_requests')
+        .insert({
+          practice_id: practiceId,
+          user_id: user.id,
+          requested_role: role,
+          message: message.trim() || null
+        });
 
       if (error) throw error;
 
       toast({
-        title: "Invitation Sent",
-        description: `An invitation has been sent to ${email.trim()}`,
+        title: "Request Submitted",
+        description: "Your join request has been sent to the practice administrators.",
       });
 
       // Reset form
-      setEmail("");
       setRole("");
-      setDepartment("");
+      setMessage("");
       onOpenChange(false);
-      onStaffAdded();
 
     } catch (err: any) {
-      console.error('Error sending invitation:', err);
-      const errorMessage = err.message || 'Failed to send invitation';
+      console.error('Error submitting join request:', err);
+      let errorMessage = "Failed to submit join request";
+      
+      if (err.code === '23505') {
+        errorMessage = "You have already submitted a request to join this practice.";
+      }
+      
       toast({
         title: "Error",
         description: errorMessage,
@@ -92,28 +92,17 @@ export function AddStaffDialog({ open, onOpenChange, onStaffAdded, practiceId, p
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Staff Member</DialogTitle>
+          <DialogTitle>Request to Join Practice</DialogTitle>
           <DialogDescription>
-            Send an invitation to join your practice. They will receive an email with instructions.
+            Submit a request to join {practiceName}. The practice administrators will review your request.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="staff-email">Email Address</Label>
-            <Input
-              id="staff-email"
-              type="email"
-              placeholder="staff@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="staff-role">Role</Label>
+            <Label htmlFor="requested-role">Requested Role</Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a role" />
+                <SelectValue placeholder="Select your role" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="doctor">Doctor</SelectItem>
@@ -127,21 +116,22 @@ export function AddStaffDialog({ open, onOpenChange, onStaffAdded, practiceId, p
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="department">Department (Optional)</Label>
-            <Input
-              id="department"
-              placeholder="e.g., Cardiology, Administration"
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
+            <Label htmlFor="message">Message (Optional)</Label>
+            <Textarea
+              id="message"
+              placeholder="Tell the practice administrators about yourself, your experience, etc."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={4}
             />
           </div>
           
           <Button 
-            onClick={handleAddStaff} 
-            disabled={isLoading || !email.trim() || !role}
+            onClick={handleSubmitRequest} 
+            disabled={isLoading || !role.trim()}
             className="w-full"
           >
-            {isLoading ? "Sending Invitation..." : "Send Invitation"}
+            {isLoading ? "Submitting..." : "Submit Request"}
           </Button>
         </div>
       </DialogContent>
