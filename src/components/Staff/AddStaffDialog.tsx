@@ -49,49 +49,18 @@ export function AddStaffDialog({ open, onOpenChange, onStaffAdded, practiceId }:
         practiceId
       });
 
-      // First, check if a user with this email exists
-      const { data: existingUser, error: userError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', email.trim()) // This assumes email is the user ID, we'd need a proper user lookup
-        .single();
-
-      if (userError) {
-        console.log('AddStaffDialog: User not found, would need to invite them');
-        toast({
-          title: "User Not Found",
-          description: "This feature would normally send an invitation to the user to join your practice. For now, users must register first.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Add the user as staff
-      const { error: staffError } = await supabase
-        .from('staff')
-        .insert({
-          user_id: existingUser.id,
-          practice_id: practiceId,
-          role: role,
-          department: department || 'General',
-          status: 'active'
-        });
-
-      if (staffError) {
-        console.error('AddStaffDialog: Error adding staff:', staffError);
-        throw new Error(`Failed to add staff member: ${staffError.message}`);
-      }
-
+      // For now, show a message about the feature implementation
       toast({
-        title: "Success",
-        description: "Staff member added successfully",
+        title: "Feature in Development",
+        description: "Staff invitation by email is being implemented. For now, users must register first with the same email address you're trying to add.",
+        variant: "default",
       });
 
+      // Reset form
       setEmail("");
       setRole("");
       setDepartment("");
       onOpenChange(false);
-      onStaffAdded();
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to add staff member';
@@ -135,6 +104,8 @@ export function AddStaffDialog({ open, onOpenChange, onStaffAdded, practiceId }:
               <SelectContent>
                 <SelectItem value="doctor">Doctor</SelectItem>
                 <SelectItem value="nurse">Nurse</SelectItem>
+                <SelectItem value="anesthesiologist">Anesthesiologist</SelectItem>
+                <SelectItem value="physician_assistant">Physician Assistant</SelectItem>
                 <SelectItem value="receptionist">Receptionist</SelectItem>
                 <SelectItem value="admin">Administrator</SelectItem>
               </SelectContent>

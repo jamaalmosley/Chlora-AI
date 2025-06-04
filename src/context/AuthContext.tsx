@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { User, Session, AuthChangeEvent } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (session?.user) {
           // For new signups, wait a moment for the profile to be created by the trigger
-          if (event === 'SIGNED_UP') {
+          if (event === 'SIGNED_UP' as AuthChangeEvent) {
             console.log('AuthContext: New signup detected, waiting for profile creation');
             setTimeout(async () => {
               await fetchProfile(session.user.id);
