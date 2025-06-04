@@ -588,6 +588,7 @@ export default function DoctorPractice() {
         onOpenChange={setShowAddStaffDialog}
         onStaffAdded={handleStaffAdded}
         practiceId={practice.id}
+        practiceName={practice.name}
       />
     </div>
   );

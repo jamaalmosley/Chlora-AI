@@ -1,42 +1,33 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LoginForm } from "@/components/Auth/LoginForm";
+import { PhysicianSetup } from "@/components/Auth/PhysicianSetup";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 
 export default function Login() {
-  const { isAuthenticated, profile, isLoading } = useAuth();
+  const { isAuthenticated, profile, isLoading, needsPracticeSetup, setNeedsPracticeSetup } = useAuth();
   const navigate = useNavigate();
-  const [isNewDoctorSignup, setIsNewDoctorSignup] = useState(false);
-  const [needsDoctorSetup, setNeedsDoctorSetup] = useState(false);
-  const [hasCheckedSetup, setHasCheckedSetup] = useState(false);
+  const [showDoctorSetup, setShowDoctorSetup] = useState(false);
 
   useEffect(() => {
-    console.log('Login component - isAuthenticated:', isAuthenticated, 'profile:', profile, 'isLoading:', isLoading);
+    console.log('Login component - isAuthenticated:', isAuthenticated, 'profile:', profile, 'isLoading:', isLoading, 'needsPracticeSetup:', needsPracticeSetup);
     
-    // Don't redirect if this is a new doctor signup that needs to complete setup
-    if (isNewDoctorSignup || needsDoctorSetup) {
-      console.log('Login: New doctor signup in progress, not redirecting');
+    // Don't redirect if we're still loading or if doctor needs practice setup
+    if (isLoading || showDoctorSetup) {
       return;
     }
     
-    // Only proceed if not loading and we have authentication data
-    if (isLoading || !isAuthenticated || !profile) {
-      return;
-    }
-
-    // Check if authenticated doctor needs setup (only once)
-    if (profile.role === 'doctor' && !hasCheckedSetup) {
-      console.log('Login: Checking if doctor needs practice setup');
-      checkDoctorPracticeSetup();
-      return;
-    }
-    
-    // Only redirect if user is authenticated, not loading, has a profile, and NOT a doctor needing setup
-    if (!needsDoctorSetup && hasCheckedSetup) {
-      console.log('Login: User is authenticated, preparing redirect');
+    // If authenticated and profile exists
+    if (isAuthenticated && profile) {
+      // If doctor needs practice setup, show setup instead of redirecting
+      if (profile.role === 'doctor' && needsPracticeSetup) {
+        console.log('Login: Doctor needs practice setup, showing setup form');
+        setShowDoctorSetup(true);
+        return;
+      }
       
+      // Otherwise, redirect based on role
+      console.log('Login: User is authenticated and setup complete, preparing redirect');
       const userRole = profile.role;
       console.log('Login: Redirecting user with role:', userRole);
       
@@ -54,32 +45,18 @@ export default function Login() {
         navigate("/patient", { replace: true });
       }
     }
-  }, [isAuthenticated, profile, isLoading, navigate, isNewDoctorSignup, needsDoctorSetup, hasCheckedSetup]);
-
-  const checkDoctorPracticeSetup = async () => {
-    if (!profile) return;
-    
-    try {
-      // For demo purposes, assume doctor setup is always complete unless explicitly triggered
-      setHasCheckedSetup(true);
-      console.log('Login: Doctor practice setup check complete, allowing redirect');
-    } catch (err) {
-      console.error('Error checking doctor practice setup:', err);
-      setHasCheckedSetup(true);
-    }
-  };
+  }, [isAuthenticated, profile, isLoading, needsPracticeSetup, navigate, showDoctorSetup]);
 
   const handleSetupComplete = () => {
-    console.log('Login: Setup completed, resetting flags');
-    setIsNewDoctorSignup(false);
-    setNeedsDoctorSetup(false);
-    setHasCheckedSetup(false); // Reset to recheck setup status
+    console.log('Login: Doctor setup completed');
+    setShowDoctorSetup(false);
+    setNeedsPracticeSetup(false);
+    // The redirect will happen in the useEffect above
   };
 
   const handleDoctorSignupStart = () => {
-    console.log('Login: Doctor signup started, showing practice ownership selection');
-    setIsNewDoctorSignup(true);
-    setNeedsDoctorSetup(true);
+    console.log('Login: Doctor signup started, will check for practice setup after auth');
+    // The needsPracticeSetup check will happen in AuthContext after profile is loaded
   };
 
   // Show loading while checking auth status
@@ -93,8 +70,31 @@ export default function Login() {
     );
   }
 
-  // If already authenticated and not a new doctor signup, show a brief loading message while redirecting
-  if (isAuthenticated && profile && !isNewDoctorSignup && !needsDoctorSetup && hasCheckedSetup) {
+  // Show doctor setup if needed
+  if (showDoctorSetup || (isAuthenticated && profile?.role === 'doctor' && needsPracticeSetup)) {
+    console.log('Login: Showing doctor setup form');
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
+        <div className="w-full max-w-4xl">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-medical-primary mb-1">
+              Chlora
+            </h1>
+            <p className="text-gray-600">
+              Complete Your Practice Setup
+            </p>
+          </div>
+          <PhysicianSetup onComplete={handleSetupComplete} />
+          <p className="text-center mt-6 text-sm text-gray-500">
+            © 2025 Chlora. All rights reserved.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // If already authenticated and not a doctor needing setup, show loading while redirecting
+  if (isAuthenticated && profile && !needsPracticeSetup) {
     console.log('Login: User authenticated, showing redirect screen');
     return (
       <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">

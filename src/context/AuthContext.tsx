@@ -22,6 +22,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
+  needsPracticeSetup: boolean;
+  setNeedsPracticeSetup: (needs: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsPracticeSetup, setNeedsPracticeSetup] = useState(false);
 
   const fetchProfile = async (userId: string) => {
     console.log('AuthContext: Starting profile fetch for user:', userId);
@@ -49,10 +52,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('AuthContext: Profile fetched successfully:', data);
       setProfile(data);
+      
+      // Check if doctor needs practice setup
+      if (data.role === 'doctor') {
+        await checkDoctorPracticeSetup(userId);
+      }
+      
       return data;
     } catch (err) {
       console.error('AuthContext: Error fetching profile:', err);
       return null;
+    }
+  };
+
+  const checkDoctorPracticeSetup = async (userId: string) => {
+    try {
+      console.log('AuthContext: Checking doctor practice setup for:', userId);
+      
+      // Check if doctor has a staff record (is part of a practice)
+      const { data: staffData, error: staffError } = await supabase
+        .from('staff')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (staffError) {
+        console.error('AuthContext: Error checking staff status:', staffError);
+        // Don't set needs setup on error, let them proceed
+        setNeedsPracticeSetup(false);
+        return;
+      }
+
+      if (!staffData) {
+        console.log('AuthContext: Doctor has no practice association, needs setup');
+        setNeedsPracticeSetup(true);
+      } else {
+        console.log('AuthContext: Doctor is part of a practice');
+        setNeedsPracticeSetup(false);
+      }
+    } catch (err) {
+      console.error('AuthContext: Error in practice setup check:', err);
+      setNeedsPracticeSetup(false);
     }
   };
 
@@ -81,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } else {
           setProfile(null);
+          setNeedsPracticeSetup(false);
           setIsLoading(false);
         }
       }
@@ -160,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setProfile(null);
+    setNeedsPracticeSetup(false);
     console.log('AuthContext: Sign out successful');
   };
 
@@ -175,6 +218,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signOut,
         isAuthenticated: !!session,
+        needsPracticeSetup,
+        setNeedsPracticeSetup,
       }}
     >
       {children}
