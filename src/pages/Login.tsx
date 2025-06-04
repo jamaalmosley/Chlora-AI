@@ -10,42 +10,48 @@ export default function Login() {
   const [showDoctorSetup, setShowDoctorSetup] = useState(false);
 
   useEffect(() => {
-    console.log('Login component - isAuthenticated:', isAuthenticated, 'profile:', profile, 'isLoading:', isLoading, 'needsPracticeSetup:', needsPracticeSetup);
+    console.log('Login component state:', { 
+      isAuthenticated, 
+      profile: profile?.role, 
+      isLoading, 
+      needsPracticeSetup, 
+      showDoctorSetup 
+    });
     
-    // Don't redirect if we're still loading or if doctor needs practice setup
-    if (isLoading || showDoctorSetup) {
+    // Don't do anything while loading
+    if (isLoading) {
       return;
     }
-    
-    // If authenticated and profile exists
+
+    // If authenticated and we have a profile
     if (isAuthenticated && profile) {
-      // If doctor needs practice setup, show setup instead of redirecting
-      if (profile.role === 'doctor' && needsPracticeSetup) {
+      // Check if doctor needs practice setup
+      if (profile.role === 'doctor' && needsPracticeSetup && !showDoctorSetup) {
         console.log('Login: Doctor needs practice setup, showing setup form');
         setShowDoctorSetup(true);
         return;
       }
+
+      // If doctor setup is being shown, don't redirect
+      if (showDoctorSetup) {
+        return;
+      }
       
       // Otherwise, redirect based on role
-      console.log('Login: User is authenticated and setup complete, preparing redirect');
+      console.log('Login: User is authenticated and setup complete, redirecting');
       const userRole = profile.role;
-      console.log('Login: Redirecting user with role:', userRole);
       
       if (userRole === "patient") {
-        console.log('Login: Navigating to patient dashboard');
         navigate("/patient", { replace: true });
       } else if (userRole === "doctor") {
-        console.log('Login: Navigating to doctor dashboard');
         navigate("/doctor", { replace: true });
       } else if (userRole === "admin") {
-        console.log('Login: Navigating to admin dashboard');
         navigate("/admin", { replace: true });
       } else {
-        console.log('Login: Unknown role, defaulting to patient dashboard');
         navigate("/patient", { replace: true });
       }
     }
-  }, [isAuthenticated, profile, isLoading, needsPracticeSetup, navigate, showDoctorSetup]);
+  }, [isAuthenticated, profile, isLoading, needsPracticeSetup, showDoctorSetup, navigate]);
 
   const handleSetupComplete = () => {
     console.log('Login: Doctor setup completed');
@@ -55,13 +61,13 @@ export default function Login() {
   };
 
   const handleDoctorSignupStart = () => {
-    console.log('Login: Doctor signup started, will check for practice setup after auth');
-    // The needsPracticeSetup check will happen in AuthContext after profile is loaded
+    console.log('Login: Doctor signup started');
+    // Don't immediately show setup - wait for profile and needsPracticeSetup to be set
   };
 
   // Show loading while checking auth status
   if (isLoading) {
-    console.log('Login: Showing loading screen - auth check in progress');
+    console.log('Login: Showing loading screen');
     return (
       <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-medical-primary"></div>
@@ -71,7 +77,7 @@ export default function Login() {
   }
 
   // Show doctor setup if needed
-  if (showDoctorSetup || (isAuthenticated && profile?.role === 'doctor' && needsPracticeSetup)) {
+  if (showDoctorSetup && isAuthenticated && profile?.role === 'doctor' && needsPracticeSetup) {
     console.log('Login: Showing doctor setup form');
     return (
       <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
@@ -95,7 +101,7 @@ export default function Login() {
 
   // If already authenticated and not a doctor needing setup, show loading while redirecting
   if (isAuthenticated && profile && !needsPracticeSetup) {
-    console.log('Login: User authenticated, showing redirect screen');
+    console.log('Login: User authenticated and complete, showing redirect screen');
     return (
       <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-medical-primary"></div>

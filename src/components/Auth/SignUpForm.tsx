@@ -35,22 +35,16 @@ export function SignUpForm({ onDoctorSignupStart, onSetupComplete }: SignUpFormP
       
       console.log('Signup result:', result);
       
-      // If user is signing up as a doctor, trigger the setup flow immediately
+      // If user is signing up as a doctor, the needsPracticeSetup will be set by AuthContext
       if (role === 'doctor') {
-        console.log('Doctor signup successful, triggering practice ownership selection');
+        console.log('Doctor signup successful, setup flow will be handled by AuthContext');
         onDoctorSignupStart?.();
-        return; // Don't set isSigningUp to false yet, keep the flow going
       }
-      
-      // For non-doctors, normal flow continues
-      console.log('Non-doctor signup successful');
       
     } catch (err) {
       console.error('Signup error:', err);
     } finally {
-      if (role !== 'doctor') {
-        setIsSigningUp(false);
-      }
+      setIsSigningUp(false);
     }
   };
 

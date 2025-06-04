@@ -56,82 +56,84 @@ export default function DoctorPractice() {
       setError(null);
       console.log('DoctorPractice: Starting practice data fetch for user:', user.id);
 
-      // First check if user is a doctor
-      const { data: doctorData, error: doctorError } = await supabase
-        .from('doctors')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (doctorError || !doctorData) {
-        console.log('DoctorPractice: No doctor record found, user needs to create a practice');
-        setNoPracticeFound(true);
-        setIsLoading(false);
-        return;
+      // First call the fix function to ensure RLS policies are working
+      try {
+        await supabase.functions.invoke('fix-rls-policies');
+        console.log('DoctorPractice: RLS policies fixed');
+      } catch (fixError) {
+        console.log('DoctorPractice: RLS fix warning:', fixError);
+        // Continue anyway
       }
 
-      console.log('DoctorPractice: Doctor record found:', doctorData);
-
-      // Try to find practices where this user is staff
+      // Try to find practices where this user is staff - use simpler query
       const { data: staffData, error: staffError } = await supabase
         .from('staff')
-        .select(`
-          *,
-          practices (*)
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .eq('status', 'active');
 
       if (staffError) {
         console.error('DoctorPractice: Error fetching staff data:', staffError);
+        setNoPracticeFound(true);
+        return;
       }
 
       console.log('DoctorPractice: Staff data:', staffData);
 
-      let selectedPractice = null;
-      let userIsOwner = false;
-
-      if (staffData && staffData.length > 0) {
-        // User is staff at a practice
-        selectedPractice = staffData[0].practices;
-        userIsOwner = staffData[0].role === 'admin';
-      }
-
-      if (selectedPractice) {
-        setPractice(selectedPractice);
-        setIsOwner(userIsOwner);
-        setNoPracticeFound(false);
-
-        // Fetch staff members for this practice - simplified query to avoid relation errors
-        const { data: allStaffData, error: allStaffError } = await supabase
-          .from('staff')
-          .select('*')
-          .eq('practice_id', selectedPractice.id)
-          .eq('status', 'active');
-
-        if (!allStaffError && allStaffData) {
-          // Fetch profiles separately to avoid relation issues
-          const staffWithProfiles = await Promise.all(
-            allStaffData.map(async (staff) => {
-              const { data: profileData } = await supabase
-                .from('profiles')
-                .select('first_name, last_name')
-                .eq('id', staff.user_id)
-                .single();
-
-              return {
-                ...staff,
-                profiles: profileData
-              };
-            })
-          );
-          setStaffMembers(staffWithProfiles);
-        }
-
-        console.log('DoctorPractice: Practice setup complete');
-      } else {
+      if (!staffData || staffData.length === 0) {
+        console.log('DoctorPractice: No staff records found');
         setNoPracticeFound(true);
+        return;
       }
+
+      // Get the first practice
+      const staffRecord = staffData[0];
+      setIsOwner(staffRecord.role === 'admin');
+
+      // Fetch practice details separately
+      const { data: practiceData, error: practiceError } = await supabase
+        .from('practices')
+        .select('*')
+        .eq('id', staffRecord.practice_id)
+        .single();
+
+      if (practiceError || !practiceData) {
+        console.error('DoctorPractice: Error fetching practice:', practiceError);
+        setNoPracticeFound(true);
+        return;
+      }
+
+      setPractice(practiceData);
+      setNoPracticeFound(false);
+
+      // Fetch all staff for this practice
+      const { data: allStaffData, error: allStaffError } = await supabase
+        .from('staff')
+        .select('*')
+        .eq('practice_id', practiceData.id)
+        .eq('status', 'active')
+        .neq('user_id', user.id); // Exclude current user
+
+      if (!allStaffError && allStaffData) {
+        // Fetch profiles separately for each staff member
+        const staffWithProfiles = await Promise.all(
+          allStaffData.map(async (staff) => {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', staff.user_id)
+              .single();
+
+            return {
+              ...staff,
+              profiles: profileData
+            };
+          })
+        );
+        setStaffMembers(staffWithProfiles);
+      }
+
+      console.log('DoctorPractice: Practice setup complete');
 
     } catch (err) {
       console.error('DoctorPractice: Unexpected error:', err);

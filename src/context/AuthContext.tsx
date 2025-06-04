@@ -53,9 +53,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('AuthContext: Profile fetched successfully:', data);
       setProfile(data);
       
-      // Check if doctor needs practice setup
+      // For doctors, check if they need practice setup with a delay to avoid recursion
       if (data.role === 'doctor') {
-        await checkDoctorPracticeSetup(userId);
+        // Use setTimeout to break any potential recursion
+        setTimeout(() => {
+          checkDoctorPracticeSetup(userId);
+        }, 100);
       }
       
       return data;
@@ -69,28 +72,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('AuthContext: Checking doctor practice setup for:', userId);
       
-      // Check if doctor has a staff record (is part of a practice)
+      // Use a simple query to avoid RLS issues
       const { data: staffData, error: staffError } = await supabase
         .from('staff')
         .select('id')
         .eq('user_id', userId)
         .eq('status', 'active')
-        .maybeSingle();
+        .limit(1);
 
       if (staffError) {
         console.error('AuthContext: Error checking staff status:', staffError);
-        // Don't set needs setup on error, let them proceed
+        // On error, assume they don't need setup to avoid blocking
         setNeedsPracticeSetup(false);
         return;
       }
 
-      if (!staffData) {
-        console.log('AuthContext: Doctor has no practice association, needs setup');
-        setNeedsPracticeSetup(true);
-      } else {
-        console.log('AuthContext: Doctor is part of a practice');
-        setNeedsPracticeSetup(false);
-      }
+      const hasStaffRecord = staffData && staffData.length > 0;
+      console.log('AuthContext: Staff check result:', hasStaffRecord ? 'Has practice' : 'Needs setup');
+      setNeedsPracticeSetup(!hasStaffRecord);
     } catch (err) {
       console.error('AuthContext: Error in practice setup check:', err);
       setNeedsPracticeSetup(false);
@@ -108,13 +107,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // For new signups, wait a moment for the profile to be created by the trigger
+          // Clear any previous state
+          setProfile(null);
+          setNeedsPracticeSetup(false);
+          
+          // For new signups, wait longer for the profile to be created
           if (event === 'SIGNED_UP' as AuthChangeEvent) {
             console.log('AuthContext: New signup detected, waiting for profile creation');
             setTimeout(async () => {
               await fetchProfile(session.user.id);
               setIsLoading(false);
-            }, 1000);
+            }, 2000); // Longer delay for new signups
           } else {
             fetchProfile(session.user.id).finally(() => {
               setIsLoading(false);
