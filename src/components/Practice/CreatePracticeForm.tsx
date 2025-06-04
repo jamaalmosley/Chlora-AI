@@ -17,15 +17,15 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Practice creation form - with demo defaults
-  const [practiceName, setPracticeName] = useState('Demo Medical Center');
-  const [practiceAddress, setPracticeAddress] = useState('123 Demo Street, Demo City, DC 12345');
-  const [practicePhone, setPracticePhone] = useState('(555) 123-4567');
-  const [practiceEmail, setPracticeEmail] = useState('contact@demo-medical.com');
+  // Practice creation form
+  const [practiceName, setPracticeName] = useState('');
+  const [practiceAddress, setPracticeAddress] = useState('');
+  const [practicePhone, setPracticePhone] = useState('');
+  const [practiceEmail, setPracticeEmail] = useState('');
 
-  // Doctor details - made optional for demo
-  const [specialty, setSpecialty] = useState('General Practice');
-  const [licenseNumber, setLicenseNumber] = useState('DEMO-LICENSE-12345');
+  // Doctor details
+  const [specialty, setSpecialty] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
 
   const handleCreatePractice = async () => {
     if (!user) {
@@ -33,6 +33,15 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
       toast({
         title: "Error",
         description: "You must be logged in to create a practice.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!practiceName.trim()) {
+      toast({
+        title: "Error",
+        description: "Practice name is required.",
         variant: "destructive",
       });
       return;
@@ -55,9 +64,9 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
         .from('practices')
         .insert({
           name: practiceName,
-          address: practiceAddress,
-          phone: practicePhone,
-          email: practiceEmail,
+          address: practiceAddress || null,
+          phone: practicePhone || null,
+          email: practiceEmail || null,
         })
         .select()
         .single();
@@ -76,7 +85,7 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
         .upsert({
           user_id: user.id,
           specialty: specialty || 'General Practice',
-          license_number: licenseNumber || `DEMO-${user.id.slice(0, 8)}`,
+          license_number: licenseNumber || `LIC-${user.id.slice(0, 8)}`,
         });
 
       if (doctorError) {
@@ -85,13 +94,29 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
       }
       console.log('Doctor record updated successfully');
 
-      // Skip staff creation entirely to avoid RLS issues
-      // The user can manually add themselves as staff later through the UI
-      console.log('Skipping staff record creation to avoid RLS issues');
+      // Add the user as an admin staff member of their own practice
+      console.log('Adding user as admin staff member');
+      const { error: staffError } = await supabase
+        .from('staff')
+        .insert({
+          user_id: user.id,
+          practice_id: practiceData.id,
+          role: 'admin',
+          department: 'Administration',
+          status: 'active'
+        });
+
+      if (staffError) {
+        console.error('Staff creation error:', staffError);
+        // Don't throw error here, just log it - the practice was created successfully
+        console.log('Practice created but staff record creation failed');
+      } else {
+        console.log('Staff record created successfully');
+      }
 
       toast({
         title: "Success",
-        description: "Your practice has been created successfully! You can manage staff through the practice settings.",
+        description: "Your practice has been created successfully!",
       });
 
       onPracticeCreated();
@@ -114,9 +139,6 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
         <CardTitle className="text-center text-medical-primary">
           Create Your Practice
         </CardTitle>
-        <p className="text-center text-sm text-gray-600">
-          Demo form - all fields are pre-filled with sample data
-        </p>
       </CardHeader>
       <CardContent className="space-y-6">
         <DoctorDetailsForm
@@ -139,7 +161,7 @@ export function CreatePracticeForm({ onPracticeCreated }: CreatePracticeFormProp
 
         <Button 
           onClick={handleCreatePractice}
-          disabled={isLoading || !practiceName}
+          disabled={isLoading || !practiceName.trim()}
           className="w-full bg-medical-primary hover:bg-medical-dark"
         >
           {isLoading ? "Creating..." : "Create Practice"}

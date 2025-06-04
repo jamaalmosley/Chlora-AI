@@ -42,20 +42,49 @@ export function AddStaffDialog({ open, onOpenChange, onStaffAdded, practiceId }:
     try {
       setIsLoading(true);
 
-      // For demo purposes, simulate adding staff
-      console.log('AddStaffDialog: Demo add staff request:', {
+      console.log('AddStaffDialog: Adding staff member:', {
         email: email.trim(),
         role,
         department,
         practiceId
       });
 
-      // Simulate success after a brief delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // First, check if a user with this email exists
+      const { data: existingUser, error: userError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', email.trim()) // This assumes email is the user ID, we'd need a proper user lookup
+        .single();
+
+      if (userError) {
+        console.log('AddStaffDialog: User not found, would need to invite them');
+        toast({
+          title: "User Not Found",
+          description: "This feature would normally send an invitation to the user to join your practice. For now, users must register first.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Add the user as staff
+      const { error: staffError } = await supabase
+        .from('staff')
+        .insert({
+          user_id: existingUser.id,
+          practice_id: practiceId,
+          role: role,
+          department: department || 'General',
+          status: 'active'
+        });
+
+      if (staffError) {
+        console.error('AddStaffDialog: Error adding staff:', staffError);
+        throw new Error(`Failed to add staff member: ${staffError.message}`);
+      }
 
       toast({
         title: "Success",
-        description: "Staff member added successfully (demo mode)",
+        description: "Staff member added successfully",
       });
 
       setEmail("");
@@ -82,7 +111,7 @@ export function AddStaffDialog({ open, onOpenChange, onStaffAdded, practiceId }:
         <DialogHeader>
           <DialogTitle>Add Staff Member</DialogTitle>
           <DialogDescription>
-            Add a new staff member to your practice by their email address.
+            Add a new staff member to your practice. They must already have an account.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">

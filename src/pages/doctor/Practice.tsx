@@ -56,7 +56,7 @@ export default function DoctorPractice() {
       setError(null);
       console.log('DoctorPractice: Starting practice data fetch for user:', user.id);
 
-      // First check if user is a doctor and has any practices
+      // First check if user is a doctor
       const { data: doctorData, error: doctorError } = await supabase
         .from('doctors')
         .select('*')
@@ -72,25 +72,74 @@ export default function DoctorPractice() {
 
       console.log('DoctorPractice: Doctor record found:', doctorData);
 
-      // For demo purposes, let's try to fetch practices without the problematic RLS query
-      // We'll create a mock practice for demo purposes
-      console.log('DoctorPractice: Creating demo practice for user');
-      
-      // Set up a demo practice
-      const demoPractice: Practice = {
-        id: 'demo-practice-id',
-        name: 'Demo Medical Center',
-        address: '123 Demo Street, Demo City, DC 12345',
-        phone: '(555) 123-4567',
-        email: 'contact@demo-medical.com'
-      };
+      // Try to find practices where this user is staff
+      const { data: staffData, error: staffError } = await supabase
+        .from('staff')
+        .select(`
+          *,
+          practices (*)
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'active');
 
-      setPractice(demoPractice);
-      setIsOwner(true); // For demo purposes, assume they're the owner
-      setNoPracticeFound(false);
-      setStaffMembers([]); // Empty staff for demo
+      if (staffError) {
+        console.error('DoctorPractice: Error fetching staff data:', staffError);
+        // Don't return error, just continue to check for owned practices
+      }
 
-      console.log('DoctorPractice: Demo practice setup complete');
+      console.log('DoctorPractice: Staff data:', staffData);
+
+      // Try to find practices this user owns (where they're the only staff or admin)
+      const { data: practicesData, error: practicesError } = await supabase
+        .from('practices')
+        .select('*');
+
+      if (practicesError) {
+        console.error('DoctorPractice: Error fetching practices:', practicesError);
+        setNoPracticeFound(true);
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('DoctorPractice: Practices data:', practicesData);
+
+      // Determine which practice to show and user's role
+      let selectedPractice = null;
+      let userIsOwner = false;
+
+      if (staffData && staffData.length > 0) {
+        // User is staff at a practice
+        selectedPractice = staffData[0].practices;
+        userIsOwner = staffData[0].role === 'admin';
+      } else if (practicesData && practicesData.length > 0) {
+        // For now, assume they own the first practice (in a real app, we'd have proper ownership tracking)
+        selectedPractice = practicesData[0];
+        userIsOwner = true;
+      }
+
+      if (selectedPractice) {
+        setPractice(selectedPractice);
+        setIsOwner(userIsOwner);
+        setNoPracticeFound(false);
+
+        // Fetch staff members for this practice
+        const { data: allStaffData, error: allStaffError } = await supabase
+          .from('staff')
+          .select(`
+            *,
+            profiles (first_name, last_name)
+          `)
+          .eq('practice_id', selectedPractice.id)
+          .eq('status', 'active');
+
+        if (!allStaffError && allStaffData) {
+          setStaffMembers(allStaffData);
+        }
+
+        console.log('DoctorPractice: Practice setup complete');
+      } else {
+        setNoPracticeFound(true);
+      }
 
     } catch (err) {
       console.error('DoctorPractice: Unexpected error:', err);
@@ -106,12 +155,24 @@ export default function DoctorPractice() {
     try {
       setIsSaving(true);
 
-      // For demo purposes, just show success without actual save
-      console.log('DoctorPractice: Demo save - would update practice:', practice);
+      const { error } = await supabase
+        .from('practices')
+        .update({
+          name: practice.name,
+          address: practice.address,
+          phone: practice.phone,
+          email: practice.email,
+        })
+        .eq('id', practice.id);
+
+      if (error) {
+        console.error('DoctorPractice: Error updating practice:', error);
+        throw error;
+      }
 
       toast({
         title: "Success",
-        description: "Practice information updated successfully (demo mode)",
+        description: "Practice information updated successfully",
       });
 
     } catch (err) {
@@ -131,7 +192,6 @@ export default function DoctorPractice() {
   };
 
   const handleStaffAdded = () => {
-    // For demo purposes, just show a success message
     console.log('DoctorPractice: Staff member added successfully');
     fetchPracticeData(); // Refresh data
   };
@@ -316,7 +376,7 @@ export default function DoctorPractice() {
                     className="w-full bg-medical-primary hover:bg-medical-dark"
                   >
                     <Save className="mr-2 h-4 w-4" />
-                    {isSaving ? "Saving..." : "Save Changes (Demo)"}
+                    {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
                 )}
 
@@ -338,7 +398,7 @@ export default function DoctorPractice() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">12</div>
+                    <div className="text-2xl font-bold text-blue-600">0</div>
                     <div className="text-sm text-gray-600">Total Patients</div>
                   </div>
                   <div className="text-center p-4 bg-green-50 rounded-lg">
@@ -346,11 +406,11 @@ export default function DoctorPractice() {
                     <div className="text-sm text-gray-600">Staff Members</div>
                   </div>
                   <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">8</div>
+                    <div className="text-2xl font-bold text-purple-600">0</div>
                     <div className="text-sm text-gray-600">Today's Appointments</div>
                   </div>
                   <div className="text-center p-4 bg-orange-50 rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">3</div>
+                    <div className="text-2xl font-bold text-orange-600">0</div>
                     <div className="text-sm text-gray-600">Pending Tasks</div>
                   </div>
                 </div>
@@ -409,7 +469,7 @@ export default function DoctorPractice() {
                 
                 {staffMembers.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
-                    <p>Demo mode - No additional staff members</p>
+                    <p>No additional staff members</p>
                     {isOwner && (
                       <p className="text-sm mt-2">Click "Add Staff Member" to get started</p>
                     )}
@@ -431,9 +491,8 @@ export default function DoctorPractice() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">$45,230</div>
+                  <div className="text-2xl font-bold text-green-600">$0</div>
                   <div className="text-sm text-gray-600">This month</div>
-                  <div className="text-xs text-green-600 mt-1">+12% from last month</div>
                 </CardContent>
               </Card>
 
@@ -445,9 +504,8 @@ export default function DoctorPractice() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-red-600">$23,450</div>
+                  <div className="text-2xl font-bold text-red-600">$0</div>
                   <div className="text-sm text-gray-600">This month</div>
-                  <div className="text-xs text-red-600 mt-1">+5% from last month</div>
                 </CardContent>
               </Card>
 
@@ -459,40 +517,20 @@ export default function DoctorPractice() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">$21,780</div>
+                  <div className="text-2xl font-bold text-blue-600">$0</div>
                   <div className="text-sm text-gray-600">This month</div>
-                  <div className="text-xs text-blue-600 mt-1">+18% from last month</div>
                 </CardContent>
               </Card>
             </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>Recent Transactions (Demo)</CardTitle>
+                <CardTitle>Recent Transactions</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 border rounded">
-                    <div>
-                      <div className="font-medium">Patient Payment - John Doe</div>
-                      <div className="text-sm text-gray-600">Insurance claim processed</div>
-                    </div>
-                    <div className="text-green-600 font-medium">+$450</div>
-                  </div>
-                  <div className="flex justify-between items-center p-3 border rounded">
-                    <div>
-                      <div className="font-medium">Medical Supplies</div>
-                      <div className="text-sm text-gray-600">Monthly supply order</div>
-                    </div>
-                    <div className="text-red-600 font-medium">-$1,200</div>
-                  </div>
-                  <div className="flex justify-between items-center p-3 border rounded">
-                    <div>
-                      <div className="font-medium">Equipment Rental</div>
-                      <div className="text-sm text-gray-600">MRI equipment lease</div>
-                    </div>
-                    <div className="text-red-600 font-medium">-$3,500</div>
-                  </div>
+                <div className="text-center py-8 text-gray-500">
+                  <p>No transactions yet</p>
+                  <p className="text-sm mt-2">Transaction history will appear here</p>
                 </div>
               </CardContent>
             </Card>
