@@ -21,93 +21,179 @@ const handler = async (req: Request): Promise<Response> => {
     // Execute SQL to completely rebuild RLS policies without recursion
     const { error: sqlError } = await supabaseAdmin.rpc('exec_sql', {
       sql: `
-        -- Drop all existing problematic policies
-        DROP POLICY IF EXISTS "Users can view their own staff records" ON public.staff;
-        DROP POLICY IF EXISTS "Users can insert their own staff records" ON public.staff;
-        DROP POLICY IF EXISTS "Practice admins can manage staff" ON public.staff;
-        DROP POLICY IF EXISTS "Users can view staff in their practice" ON public.staff;
-        DROP POLICY IF EXISTS "Users can insert themselves as staff" ON public.staff;
+        -- Drop ALL existing policies on all tables to start fresh
+        DO $$ 
+        DECLARE
+            pol RECORD;
+        BEGIN
+            -- Drop all policies on practices table
+            FOR pol IN SELECT policyname FROM pg_policies WHERE tablename = 'practices' AND schemaname = 'public'
+            LOOP
+                EXECUTE format('DROP POLICY IF EXISTS %I ON public.practices', pol.policyname);
+            END LOOP;
+            
+            -- Drop all policies on staff table
+            FOR pol IN SELECT policyname FROM pg_policies WHERE tablename = 'staff' AND schemaname = 'public'
+            LOOP
+                EXECUTE format('DROP POLICY IF EXISTS %I ON public.staff', pol.policyname);
+            END LOOP;
+            
+            -- Drop all policies on profiles table
+            FOR pol IN SELECT policyname FROM pg_policies WHERE tablename = 'profiles' AND schemaname = 'public'
+            LOOP
+                EXECUTE format('DROP POLICY IF EXISTS %I ON public.profiles', pol.policyname);
+            END LOOP;
+            
+            -- Drop all policies on doctors table
+            FOR pol IN SELECT policyname FROM pg_policies WHERE tablename = 'doctors' AND schemaname = 'public'
+            LOOP
+                EXECUTE format('DROP POLICY IF EXISTS %I ON public.doctors', pol.policyname);
+            END LOOP;
+        END $$;
 
-        -- Disable RLS temporarily to avoid issues
+        -- Drop existing functions that might cause recursive issues
+        DROP FUNCTION IF EXISTS public.user_can_view_practice_staff(uuid);
+        DROP FUNCTION IF EXISTS public.user_is_practice_admin(uuid);
+        DROP FUNCTION IF EXISTS public.get_user_practice_ids();
+        DROP FUNCTION IF EXISTS public.is_practice_admin(uuid);
+        DROP FUNCTION IF EXISTS public.user_belongs_to_practice(uuid);
+
+        -- Temporarily disable RLS to avoid issues during recreation
         ALTER TABLE public.staff DISABLE ROW LEVEL SECURITY;
+        ALTER TABLE public.practices DISABLE ROW LEVEL SECURITY;
+        ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
+        ALTER TABLE public.doctors DISABLE ROW LEVEL SECURITY;
 
-        -- Create simple security definer functions that don't cause recursion
-        CREATE OR REPLACE FUNCTION public.user_can_view_practice_staff(p_practice_id uuid)
-        RETURNS boolean
+        -- Create base case security definer functions that don't reference policies
+        CREATE OR REPLACE FUNCTION public.get_user_practice_ids()
+        RETURNS uuid[]
         LANGUAGE sql
         SECURITY DEFINER
         STABLE
         AS $$
-          -- Simple check without complex joins
-          SELECT EXISTS (
-            SELECT 1 FROM public.staff 
-            WHERE user_id = auth.uid() 
-            AND practice_id = p_practice_id 
-            AND status = 'active'
-          );
+          -- Base case: Always check for null first to prevent recursion
+          SELECT CASE 
+            WHEN auth.uid() IS NULL THEN ARRAY[]::uuid[]
+            ELSE COALESCE(
+              (SELECT ARRAY_AGG(practice_id) 
+               FROM public.staff 
+               WHERE user_id = auth.uid() 
+               AND status = 'active'), 
+              ARRAY[]::uuid[]
+            )
+          END;
         $$;
 
-        CREATE OR REPLACE FUNCTION public.user_is_practice_admin(p_practice_id uuid)
+        CREATE OR REPLACE FUNCTION public.is_practice_admin(p_practice_id uuid)
         RETURNS boolean
         LANGUAGE sql
         SECURITY DEFINER
         STABLE
         AS $$
-          SELECT EXISTS (
-            SELECT 1 FROM public.staff 
-            WHERE user_id = auth.uid() 
-            AND practice_id = p_practice_id 
-            AND role = 'admin' 
-            AND status = 'active'
-          );
+          -- Base case: Always check for nulls first
+          SELECT CASE 
+            WHEN auth.uid() IS NULL OR p_practice_id IS NULL THEN false
+            ELSE EXISTS (
+              SELECT 1 FROM public.staff 
+              WHERE user_id = auth.uid() 
+              AND practice_id = p_practice_id 
+              AND role = 'admin' 
+              AND status = 'active'
+            )
+          END;
+        $$;
+
+        CREATE OR REPLACE FUNCTION public.can_access_practice(p_practice_id uuid)
+        RETURNS boolean
+        LANGUAGE sql
+        SECURITY DEFINER
+        STABLE
+        AS $$
+          -- Base case: Direct staff table query without RLS dependency
+          SELECT CASE 
+            WHEN auth.uid() IS NULL OR p_practice_id IS NULL THEN false
+            ELSE EXISTS (
+              SELECT 1 FROM public.staff 
+              WHERE user_id = auth.uid() 
+              AND practice_id = p_practice_id 
+              AND status = 'active'
+            )
+          END;
         $$;
 
         -- Re-enable RLS
         ALTER TABLE public.staff ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE public.practices ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE public.doctors ENABLE ROW LEVEL SECURITY;
 
-        -- Create new, simple policies
-        CREATE POLICY "Users can view practice staff" ON public.staff
-        FOR SELECT USING (
-          public.user_can_view_practice_staff(practice_id)
+        -- Create non-recursive policies for practices table
+        CREATE POLICY "view_own_practices" ON public.practices
+        FOR SELECT 
+        USING (
+          public.can_access_practice(id)
         );
 
-        CREATE POLICY "Admins can manage staff" ON public.staff
-        FOR ALL USING (
-          public.user_is_practice_admin(practice_id)
+        CREATE POLICY "admin_update_practices" ON public.practices
+        FOR UPDATE 
+        USING (
+          public.is_practice_admin(id)
         );
 
-        CREATE POLICY "Users can insert as staff" ON public.staff
-        FOR INSERT WITH CHECK (
+        CREATE POLICY "anyone_insert_practices" ON public.practices
+        FOR INSERT 
+        WITH CHECK (true);
+
+        -- Create non-recursive policies for staff table
+        CREATE POLICY "view_practice_staff" ON public.staff
+        FOR SELECT 
+        USING (
+          public.can_access_practice(practice_id)
+        );
+
+        CREATE POLICY "admin_manage_staff" ON public.staff
+        FOR ALL 
+        USING (
+          public.is_practice_admin(practice_id)
+        );
+
+        CREATE POLICY "insert_self_as_staff" ON public.staff
+        FOR INSERT 
+        WITH CHECK (
           user_id = auth.uid()
         );
 
-        -- Also fix practices table policies
-        DROP POLICY IF EXISTS "Users can view practices they belong to" ON public.practices;
-        DROP POLICY IF EXISTS "Practice owners can manage practices" ON public.practices;
-
-        CREATE POLICY "Users can view their practices" ON public.practices
-        FOR SELECT USING (
-          EXISTS (
-            SELECT 1 FROM public.staff 
-            WHERE staff.practice_id = practices.id 
-            AND staff.user_id = auth.uid() 
-            AND staff.status = 'active'
-          )
+        -- Create simple policies for profiles table
+        CREATE POLICY "view_own_profile" ON public.profiles
+        FOR SELECT 
+        USING (
+          id = auth.uid()
         );
 
-        CREATE POLICY "Admins can update practices" ON public.practices
-        FOR UPDATE USING (
-          EXISTS (
-            SELECT 1 FROM public.staff 
-            WHERE staff.practice_id = practices.id 
-            AND staff.user_id = auth.uid() 
-            AND staff.role = 'admin' 
-            AND staff.status = 'active'
-          )
+        CREATE POLICY "update_own_profile" ON public.profiles
+        FOR UPDATE 
+        USING (
+          id = auth.uid()
         );
 
-        CREATE POLICY "Anyone can insert practices" ON public.practices
-        FOR INSERT WITH CHECK (true);
+        -- Create simple policies for doctors table
+        CREATE POLICY "view_own_doctor_record" ON public.doctors
+        FOR SELECT 
+        USING (
+          user_id = auth.uid()
+        );
+
+        CREATE POLICY "insert_own_doctor_record" ON public.doctors
+        FOR INSERT 
+        WITH CHECK (
+          user_id = auth.uid()
+        );
+
+        CREATE POLICY "update_own_doctor_record" ON public.doctors
+        FOR UPDATE 
+        USING (
+          user_id = auth.uid()
+        );
       `
     });
 
@@ -117,7 +203,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: "RLS policies fixed successfully" }),
+      JSON.stringify({ success: true, message: "RLS policies completely rebuilt without recursion" }),
       { headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
 

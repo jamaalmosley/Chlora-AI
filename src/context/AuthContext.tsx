@@ -1,15 +1,16 @@
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { User, Session, AuthChangeEvent } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Profile {
   id: string;
-  first_name: string | null;
-  last_name: string | null;
+  first_name?: string;
+  last_name?: string;
   role: string;
-  avatar_url: string | null;
-  phone: string | null;
+  phone?: string;
+  avatar_url?: string;
 }
 
 interface AuthContextType {
@@ -17,13 +18,13 @@ interface AuthContextType {
   profile: Profile | null;
   session: Session | null;
   isLoading: boolean;
-  error: string | null;
-  signUp: (email: string, password: string, userData?: any) => Promise<{ user?: User }>;
-  signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
   isAuthenticated: boolean;
   needsPracticeSetup: boolean;
   setNeedsPracticeSetup: (needs: boolean) => void;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, metadata: any) => Promise<any>;
+  signOut: () => Promise<void>;
+  error: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,167 +34,193 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [needsPracticeSetup, setNeedsPracticeSetup] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  const fetchProfile = async (userId: string) => {
-    console.log('AuthContext: Starting profile fetch for user:', userId);
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (error) {
-        console.log('AuthContext: Profile fetch error:', error);
-        throw error;
-      }
-      
-      console.log('AuthContext: Profile fetched successfully:', data);
-      setProfile(data);
-      
-      // For doctors, check if they need practice setup with a delay to avoid recursion
-      if (data.role === 'doctor') {
-        // Use setTimeout to break any potential recursion
-        setTimeout(() => {
-          checkDoctorPracticeSetup(userId);
-        }, 100);
-      }
-      
-      return data;
-    } catch (err) {
-      console.error('AuthContext: Error fetching profile:', err);
-      return null;
+  // Check if doctor needs practice setup
+  const checkDoctorPracticeSetup = async (userId: string, userRole: string) => {
+    if (userRole !== 'doctor') {
+      setNeedsPracticeSetup(false);
+      return;
     }
-  };
 
-  const checkDoctorPracticeSetup = async (userId: string) => {
     try {
-      console.log('AuthContext: Checking doctor practice setup for:', userId);
+      console.log('AuthContext: Checking practice setup for doctor:', userId);
       
-      // Use a simple query to avoid RLS issues
+      // Call the RLS fix function first to ensure policies work
+      try {
+        await supabase.functions.invoke('fix-rls-policies');
+        console.log('AuthContext: RLS policies fixed');
+      } catch (fixError) {
+        console.log('AuthContext: RLS fix warning (continuing):', fixError);
+      }
+
+      // Check if doctor has any staff records (is part of a practice)
       const { data: staffData, error: staffError } = await supabase
         .from('staff')
-        .select('id')
+        .select('id, practice_id, role, status')
         .eq('user_id', userId)
         .eq('status', 'active')
         .limit(1);
 
       if (staffError) {
-        console.error('AuthContext: Error checking staff status:', staffError);
-        // On error, assume they don't need setup to avoid blocking
-        setNeedsPracticeSetup(false);
+        console.error('AuthContext: Error checking staff records:', staffError);
+        // If we can't check, assume they need setup
+        setNeedsPracticeSetup(true);
         return;
       }
 
-      const hasStaffRecord = staffData && staffData.length > 0;
-      console.log('AuthContext: Staff check result:', hasStaffRecord ? 'Has practice' : 'Needs setup');
-      setNeedsPracticeSetup(!hasStaffRecord);
+      const hasActivePractice = staffData && staffData.length > 0;
+      console.log('AuthContext: Doctor practice check:', { hasActivePractice, staffData });
+      
+      setNeedsPracticeSetup(!hasActivePractice);
     } catch (err) {
-      console.error('AuthContext: Error in practice setup check:', err);
-      setNeedsPracticeSetup(false);
+      console.error('AuthContext: Error in checkDoctorPracticeSetup:', err);
+      setNeedsPracticeSetup(true);
+    }
+  };
+
+  const fetchProfile = async (userId: string) => {
+    try {
+      console.log('AuthContext: Fetching profile for user:', userId);
+      
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        console.error('AuthContext: Error fetching profile:', profileError);
+        throw profileError;
+      }
+
+      console.log('AuthContext: Profile fetched:', profileData);
+      setProfile(profileData);
+
+      // Check practice setup after profile is loaded
+      if (profileData?.role) {
+        await checkDoctorPracticeSetup(userId, profileData.role);
+      }
+
+      return profileData;
+    } catch (err) {
+      console.error('AuthContext: Error in fetchProfile:', err);
+      setProfile(null);
+      throw err;
     }
   };
 
   useEffect(() => {
     console.log('AuthContext: Setting up auth state listener');
     
-    // Set up auth state listener
+    // Get initial session
+    const getInitialSession = async () => {
+      console.log('AuthContext: Getting initial session');
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      console.log('AuthContext: Initial session:', initialSession);
+
+      if (initialSession?.user) {
+        setSession(initialSession);
+        setUser(initialSession.user);
+        try {
+          await fetchProfile(initialSession.user.id);
+        } catch (err) {
+          console.error('AuthContext: Error fetching initial profile:', err);
+        }
+      }
+      
+      setIsLoading(false);
+    };
+
+    getInitialSession();
+
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event: AuthChangeEvent, session: Session | null) => {
+      async (event, session) => {
         console.log('AuthContext: Auth state changed:', event, session?.user?.id);
+        
         setSession(session);
         setUser(session?.user ?? null);
-        
+        setError(null);
+
         if (session?.user) {
-          // Clear any previous state
-          setProfile(null);
-          setNeedsPracticeSetup(false);
-          
-          // For new signups, wait longer for the profile to be created
-          if (event === 'SIGNED_UP' as AuthChangeEvent) {
-            console.log('AuthContext: New signup detected, waiting for profile creation');
-            setTimeout(async () => {
-              await fetchProfile(session.user.id);
-              setIsLoading(false);
-            }, 2000); // Longer delay for new signups
-          } else {
-            fetchProfile(session.user.id).finally(() => {
-              setIsLoading(false);
-            });
+          try {
+            await fetchProfile(session.user.id);
+          } catch (err) {
+            console.error('AuthContext: Error fetching profile on auth change:', err);
           }
         } else {
           setProfile(null);
           setNeedsPracticeSetup(false);
-          setIsLoading(false);
         }
+
+        if (event === 'SIGNED_OUT') {
+          setProfile(null);
+          setNeedsPracticeSetup(false);
+        }
+
+        setIsLoading(false);
       }
     );
 
-    // Get initial session
-    console.log('AuthContext: Getting initial session');
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.log('AuthContext: Initial session:', session?.user?.id);
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await fetchProfile(session.user.id);
-      }
-      
-      console.log('AuthContext: Initial setup complete, setting isLoading to false');
-      setIsLoading(false);
-    });
-
     return () => {
-      console.log('AuthContext: Cleaning up auth listener');
       subscription.unsubscribe();
     };
   }, []);
 
-  const signUp = async (email: string, password: string, userData = {}) => {
-    console.log('AuthContext: Starting sign up process');
-    setIsLoading(true);
-    setError(null);
-    
+  const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      setError(null);
+      setIsLoading(true);
+
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: {
-          data: userData
-        }
       });
-      
+
       if (error) throw error;
-      console.log('AuthContext: Sign up successful');
-      return { user: data.user };
-    } catch (err) {
-      console.error('AuthContext: Sign up error:', err);
-      setError(err instanceof Error ? err.message : "An error occurred");
+
+      console.log('AuthContext: Sign in successful:', data.user?.id);
+    } catch (err: any) {
+      console.error('AuthContext: Sign in error:', err);
+      setError(err.message);
       throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const signIn = async (email: string, password: string) => {
-    console.log('AuthContext: Starting sign in process');
-    setIsLoading(true);
-    setError(null);
-    
+  const signUp = async (email: string, password: string, metadata: any) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      setError(null);
+      setIsLoading(true);
+
+      console.log('AuthContext: Starting signup with metadata:', metadata);
+
+      const { data, error } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          data: metadata,
+        },
       });
-      
+
       if (error) throw error;
-      console.log('AuthContext: Sign in successful');
-    } catch (err) {
-      console.error('AuthContext: Sign in error:', err);
-      setError(err instanceof Error ? err.message : "An error occurred");
+
+      console.log('AuthContext: Signup successful:', data);
+
+      // If user role is doctor, they'll need practice setup
+      if (metadata.role === 'doctor') {
+        console.log('AuthContext: Doctor signup detected, will need practice setup');
+        setNeedsPracticeSetup(true);
+      }
+
+      return data;
+    } catch (err: any) {
+      console.error('AuthContext: Signup error:', err);
+      setError(err.message);
       throw err;
     } finally {
       setIsLoading(false);
@@ -201,30 +228,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    console.log('AuthContext: Starting sign out process');
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    setProfile(null);
-    setNeedsPracticeSetup(false);
-    console.log('AuthContext: Sign out successful');
+    try {
+      setError(null);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      setNeedsPracticeSetup(false);
+    } catch (err: any) {
+      console.error('AuthContext: Sign out error:', err);
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  const value = {
+    user,
+    profile,
+    session,
+    isLoading,
+    isAuthenticated: !!user,
+    needsPracticeSetup,
+    setNeedsPracticeSetup,
+    signIn,
+    signUp,
+    signOut,
+    error,
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        profile,
-        session,
-        isLoading,
-        error,
-        signUp,
-        signIn,
-        signOut,
-        isAuthenticated: !!session,
-        needsPracticeSetup,
-        setNeedsPracticeSetup,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

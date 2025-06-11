@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,21 +57,21 @@ export default function DoctorPractice() {
       setError(null);
       console.log('DoctorPractice: Starting practice data fetch for user:', user.id);
 
-      // First call the fix function to ensure RLS policies are working
+      // Call the RLS fix function to ensure policies are working properly
       try {
-        await supabase.functions.invoke('fix-rls-policies');
-        console.log('DoctorPractice: RLS policies fixed');
+        const { data: fixResult } = await supabase.functions.invoke('fix-rls-policies');
+        console.log('DoctorPractice: RLS policies fixed:', fixResult);
       } catch (fixError) {
-        console.log('DoctorPractice: RLS fix warning:', fixError);
-        // Continue anyway
+        console.log('DoctorPractice: RLS fix warning (continuing):', fixError);
       }
 
-      // Try to find practices where this user is staff - use simpler query
+      // Direct query to staff table to find user's practices
       const { data: staffData, error: staffError } = await supabase
         .from('staff')
-        .select('*')
+        .select('practice_id, role, status')
         .eq('user_id', user.id)
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .limit(1);
 
       if (staffError) {
         console.error('DoctorPractice: Error fetching staff data:', staffError);
@@ -86,11 +87,10 @@ export default function DoctorPractice() {
         return;
       }
 
-      // Get the first practice
       const staffRecord = staffData[0];
       setIsOwner(staffRecord.role === 'admin');
 
-      // Fetch practice details separately
+      // Fetch practice details using direct query
       const { data: practiceData, error: practiceError } = await supabase
         .from('practices')
         .select('*')
@@ -106,16 +106,16 @@ export default function DoctorPractice() {
       setPractice(practiceData);
       setNoPracticeFound(false);
 
-      // Fetch all staff for this practice
+      // Fetch other staff members for this practice
       const { data: allStaffData, error: allStaffError } = await supabase
         .from('staff')
-        .select('*')
+        .select('id, role, department, status, user_id')
         .eq('practice_id', practiceData.id)
         .eq('status', 'active')
-        .neq('user_id', user.id); // Exclude current user
+        .neq('user_id', user.id);
 
       if (!allStaffError && allStaffData) {
-        // Fetch profiles separately for each staff member
+        // Fetch profiles for each staff member
         const staffWithProfiles = await Promise.all(
           allStaffData.map(async (staff) => {
             const { data: profileData } = await supabase
