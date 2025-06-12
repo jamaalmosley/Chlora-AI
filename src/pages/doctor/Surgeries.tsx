@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Surgery {
   id: string;
@@ -43,6 +45,7 @@ export default function DoctorSurgeries() {
   const [doctorData, setDoctorData] = useState<any>(null);
   const [patients, setPatients] = useState<any[]>([]);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("scheduled");
   const [newSurgery, setNewSurgery] = useState({
     patient_id: '',
     surgery_date: '',
@@ -54,9 +57,13 @@ export default function DoctorSurgeries() {
   });
 
   useEffect(() => {
-    const loadDoctorSurgeries = async () => {
-      if (!user) return;
+    const loadDoctorData = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
       
+      console.log('Loading doctor surgeries data for user:', user.id);
       setIsLoading(true);
       
       try {
@@ -67,14 +74,21 @@ export default function DoctorSurgeries() {
           .eq('user_id', user.id)
           .single();
 
-        if (doctorError) throw doctorError;
+        if (doctorError) {
+          console.error('Error fetching doctor:', doctorError);
+          throw doctorError;
+        }
+        
+        console.log('Doctor data loaded:', doctor);
         setDoctorData(doctor);
 
-        // Get doctor's patients
+        // Get doctor's patients from appointments
         const { data: appointments } = await supabase
           .from('appointments')
           .select('patient_id')
           .eq('doctor_id', doctor.id);
+
+        console.log('Appointments found:', appointments?.length || 0);
 
         const patientIds = [...new Set(appointments?.map(apt => apt.patient_id) || [])];
 
@@ -87,34 +101,43 @@ export default function DoctorSurgeries() {
             `)
             .in('id', patientIds);
 
+          console.log('Patients loaded:', patientsData?.length || 0);
           setPatients(patientsData || []);
         }
 
-        // For now, we'll create a mock surgeries table structure
-        // In a real implementation, you'd create a surgeries table in Supabase
-        setSurgeries([]);
-        setFilteredSurgeries([]);
+        // Mock surgeries data since we don't have a surgeries table yet
+        // In a real implementation, you'd fetch from a surgeries table
+        const mockSurgeries: Surgery[] = [];
+        setSurgeries(mockSurgeries);
+        setFilteredSurgeries(mockSurgeries);
       } catch (error) {
-        console.error('Error loading surgeries:', error);
+        console.error('Error loading surgeries data:', error);
+        toast({
+          title: "Error Loading Data",
+          description: "Failed to load surgeries data. Please try again.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
     };
     
-    if (user) {
-      loadDoctorSurgeries();
-    }
-  }, [user]);
+    loadDoctorData();
+  }, [user, toast]);
 
   useEffect(() => {
     const filtered = surgeries.filter(surgery => {
       const patientName = `${surgery.patient?.user?.first_name || ''} ${surgery.patient?.user?.last_name || ''}`.toLowerCase();
       const procedure = surgery.procedure_name.toLowerCase();
       const search = searchTerm.toLowerCase();
-      return patientName.includes(search) || procedure.includes(search);
+      
+      const matchesSearch = patientName.includes(search) || procedure.includes(search);
+      const matchesTab = activeTab === 'all' || surgery.status === activeTab;
+      
+      return matchesSearch && matchesTab;
     });
     setFilteredSurgeries(filtered);
-  }, [searchTerm, surgeries]);
+  }, [searchTerm, surgeries, activeTab]);
 
   const handleScheduleSurgery = async () => {
     if (!newSurgery.patient_id || !newSurgery.surgery_date || !newSurgery.procedure_name || !doctorData) {
@@ -126,32 +149,60 @@ export default function DoctorSurgeries() {
       return;
     }
 
-    // For demonstration, we'll just show a success message
-    // In a real implementation, you'd save to a surgeries table
-    toast({
-      title: "Surgery Scheduled",
-      description: "The surgery has been successfully scheduled.",
-    });
+    try {
+      // For demonstration, we'll just show a success message
+      // In a real implementation, you'd save to a surgeries table
+      toast({
+        title: "Surgery Scheduled",
+        description: "The surgery has been successfully scheduled.",
+      });
 
-    setIsScheduleDialogOpen(false);
-    setNewSurgery({
-      patient_id: '',
-      surgery_date: '',
-      surgery_time: '',
-      procedure_name: '',
-      location: '',
-      notes: '',
-      estimated_duration: ''
-    });
+      setIsScheduleDialogOpen(false);
+      setNewSurgery({
+        patient_id: '',
+        surgery_date: '',
+        surgery_time: '',
+        procedure_name: '',
+        location: '',
+        notes: '',
+        estimated_duration: ''
+      });
+    } catch (error) {
+      console.error('Error scheduling surgery:', error);
+      toast({
+        title: "Error",
+        description: "Failed to schedule surgery. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getTabCounts = () => {
+    return {
+      scheduled: surgeries.filter(s => s.status === 'scheduled').length,
+      completed: surgeries.filter(s => s.status === 'completed').length,
+      cancelled: surgeries.filter(s => s.status === 'cancelled').length,
+      all: surgeries.length
+    };
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-medical-primary"></div>
+      <div className="container mx-auto py-6">
+        <div className="mb-6">
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+          <Skeleton className="lg:col-span-3 h-16" />
+          <Skeleton className="h-16" />
+        </div>
+        <Skeleton className="h-64" />
       </div>
     );
   }
+
+  const tabCounts = getTabCounts();
 
   return (
     <div className="container mx-auto py-6">
@@ -281,96 +332,131 @@ export default function DoctorSurgeries() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Scheduled Surgeries</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Surgeries</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{surgeries.length}</div>
-            <p className="text-xs text-muted-foreground">This month</p>
+            <div className="text-2xl font-bold">{tabCounts.all}</div>
+            <p className="text-xs text-muted-foreground">All time</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Surgeries List */}
-      {filteredSurgeries.length === 0 ? (
-        <Card>
+      {/* Tabs for Surgery Status */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="scheduled">
+            Scheduled ({tabCounts.scheduled})
+          </TabsTrigger>
+          <TabsTrigger value="completed">
+            Completed ({tabCounts.completed})
+          </TabsTrigger>
+          <TabsTrigger value="cancelled">
+            Cancelled ({tabCounts.cancelled})
+          </TabsTrigger>
+          <TabsTrigger value="all">
+            All ({tabCounts.all})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="scheduled" className="mt-6">
+          <SurgeriesList surgeries={filteredSurgeries} />
+        </TabsContent>
+        
+        <TabsContent value="completed" className="mt-6">
+          <SurgeriesList surgeries={filteredSurgeries} />
+        </TabsContent>
+        
+        <TabsContent value="cancelled" className="mt-6">
+          <SurgeriesList surgeries={filteredSurgeries} />
+        </TabsContent>
+        
+        <TabsContent value="all" className="mt-6">
+          <SurgeriesList surgeries={filteredSurgeries} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function SurgeriesList({ surgeries }: { surgeries: Surgery[] }) {
+  if (surgeries.length === 0) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center py-12">
+            <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No surgeries found</h3>
+            <p className="text-gray-600 mb-4">
+              No surgeries match the current filter criteria.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-4">
+      {surgeries.map((surgery) => (
+        <Card key={surgery.id}>
           <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No surgeries scheduled</h3>
-              <p className="text-gray-600 mb-4">
-                {searchTerm ? 'No surgeries match your search criteria.' : 'You don\'t have any surgeries scheduled yet.'}
-              </p>
-              <Button onClick={() => setIsScheduleDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Schedule Your First Surgery
-              </Button>
+            <div className="flex items-start justify-between">
+              <div className="flex items-start space-x-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <FileText className="h-6 w-6 text-red-600" />
+                </div>
+                
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <h3 className="text-lg font-semibold">{surgery.procedure_name}</h3>
+                    <Badge variant={surgery.status === 'scheduled' ? 'default' : 'secondary'}>
+                      {surgery.status}
+                    </Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600 mb-4">
+                    <div className="flex items-center space-x-2">
+                      <User className="h-4 w-4" />
+                      <span>{surgery.patient?.user?.first_name} {surgery.patient?.user?.last_name}</span>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="h-4 w-4" />
+                      <span>{format(new Date(surgery.surgery_date), 'MMM d, yyyy')}</span>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-4 w-4" />
+                      <span>{surgery.surgery_time}</span>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <MapPin className="h-4 w-4" />
+                      <span>{surgery.location}</span>
+                    </div>
+                  </div>
+
+                  {surgery.notes && (
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">Notes: </span>
+                      <span>{surgery.notes}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Button variant="outline" size="sm">
+                  Edit
+                </Button>
+                <Button variant="destructive" size="sm">
+                  Cancel
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {filteredSurgeries.map((surgery) => (
-            <Card key={surgery.id}>
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                      <FileText className="h-6 w-6 text-red-600" />
-                    </div>
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-semibold">{surgery.procedure_name}</h3>
-                        <Badge variant={surgery.status === 'scheduled' ? 'default' : 'secondary'}>
-                          {surgery.status}
-                        </Badge>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600 mb-4">
-                        <div className="flex items-center space-x-2">
-                          <User className="h-4 w-4" />
-                          <span>{surgery.patient?.user?.first_name} {surgery.patient?.user?.last_name}</span>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="h-4 w-4" />
-                          <span>{format(new Date(surgery.surgery_date), 'MMM d, yyyy')}</span>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Clock className="h-4 w-4" />
-                          <span>{surgery.surgery_time}</span>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <MapPin className="h-4 w-4" />
-                          <span>{surgery.location}</span>
-                        </div>
-                      </div>
-
-                      {surgery.notes && (
-                        <div className="text-sm text-gray-600">
-                          <span className="font-medium">Notes: </span>
-                          <span>{surgery.notes}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm">
-                      Edit
-                    </Button>
-                    <Button variant="destructive" size="sm">
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      ))}
     </div>
   );
 }
