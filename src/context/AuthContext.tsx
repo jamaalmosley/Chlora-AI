@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +24,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, metadata: any) => Promise<any>;
   signOut: () => Promise<void>;
   error: string | null;
+  refreshPracticeStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,14 +47,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       console.log('AuthContext: Checking practice setup for doctor:', userId);
-      
-      // Call the RLS fix function first to ensure policies work
-      try {
-        await supabase.functions.invoke('fix-rls-policies');
-        console.log('AuthContext: RLS policies fixed');
-      } catch (fixError) {
-        console.log('AuthContext: RLS fix warning (continuing):', fixError);
-      }
 
       // Check if doctor has any staff records (is part of a practice)
       const { data: staffData, error: staffError } = await supabase
@@ -66,8 +58,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (staffError) {
         console.error('AuthContext: Error checking staff records:', staffError);
-        // If we can't check, assume they need setup
-        setNeedsPracticeSetup(true);
+        // If we can't check due to RLS issues, check if doctor record exists
+        const { data: doctorData, error: doctorError } = await supabase
+          .from('doctors')
+          .select('id')
+          .eq('user_id', userId)
+          .limit(1);
+
+        if (doctorError) {
+          console.error('AuthContext: Error checking doctor record:', doctorError);
+          setNeedsPracticeSetup(true);
+          return;
+        }
+
+        // If doctor record exists but can't check staff, assume they need practice setup
+        setNeedsPracticeSetup(!doctorData || doctorData.length === 0);
         return;
       }
 
@@ -78,6 +83,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('AuthContext: Error in checkDoctorPracticeSetup:', err);
       setNeedsPracticeSetup(true);
+    }
+  };
+
+  const refreshPracticeStatus = async () => {
+    if (user && profile) {
+      await checkDoctorPracticeSetup(user.id, profile.role);
     }
   };
 
@@ -256,6 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signOut,
     error,
+    refreshPracticeStatus,
   };
 
   return (

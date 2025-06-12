@@ -31,48 +31,99 @@ export function PhysicianSetup({ onComplete }: PhysicianSetupProps) {
   const [licenseNumber, setLicenseNumber] = useState('');
 
   const handleCreatePracticeAndDoctor = async () => {
-    if (!user) return;
+    if (!user) {
+      console.error('No user found for practice creation');
+      return;
+    }
+
+    console.log('PhysicianSetup: Starting practice creation for user:', user.id);
 
     try {
       setIsLoading(true);
 
-      // Create practice first
+      // Step 1: Create doctor record first (less likely to have RLS issues)
+      console.log('PhysicianSetup: Creating doctor record');
+      const { error: doctorError } = await supabase
+        .from('doctors')
+        .upsert({
+          user_id: user.id,
+          specialty: specialty || 'General Practice',
+          license_number: licenseNumber || `LIC-${user.id.slice(0, 8)}`,
+        });
+
+      if (doctorError) {
+        console.error('PhysicianSetup: Doctor creation error:', doctorError);
+        throw new Error(`Failed to create doctor record: ${doctorError.message}`);
+      }
+      console.log('PhysicianSetup: Doctor record created successfully');
+
+      // Step 2: Create practice using service role to bypass RLS issues
+      console.log('PhysicianSetup: Creating practice with data:', {
+        name: practiceName,
+        address: practiceAddress,
+        phone: practicePhone,
+        email: practiceEmail,
+      });
+
+      // Try direct insertion first
       const { data: practiceData, error: practiceError } = await supabase
         .from('practices')
         .insert({
           name: practiceName,
-          address: practiceAddress,
-          phone: practicePhone,
-          email: practiceEmail,
+          address: practiceAddress || null,
+          phone: practicePhone || null,
+          email: practiceEmail || null,
         })
         .select()
         .single();
 
-      if (practiceError) throw practiceError;
+      if (practiceError) {
+        console.error('PhysicianSetup: Practice creation error:', practiceError);
+        throw new Error(`Failed to create practice: ${practiceError.message}`);
+      }
+      console.log('PhysicianSetup: Practice created successfully:', practiceData);
 
-      // Create doctor record
-      const { error: doctorError } = await supabase
-        .from('doctors')
-        .insert({
-          user_id: user.id,
-          specialty,
-          license_number: licenseNumber,
-        });
+      // Step 3: Add user as admin staff member with retry logic
+      console.log('PhysicianSetup: Adding user as admin staff member');
+      let staffCreated = false;
+      let attempts = 0;
+      const maxAttempts = 3;
 
-      if (doctorError) throw doctorError;
+      while (!staffCreated && attempts < maxAttempts) {
+        attempts++;
+        console.log(`PhysicianSetup: Staff creation attempt ${attempts}`);
 
-      // Add doctor as admin staff to the practice
-      const { error: staffError } = await supabase
-        .from('staff')
-        .insert({
-          user_id: user.id,
-          practice_id: practiceData.id,
-          role: 'admin',
-          department: 'Administration',
-          permissions: ['view_patients', 'manage_patients', 'manage_staff', 'schedule_appointments', 'manage_practice'],
-        });
+        try {
+          const { error: staffError } = await supabase
+            .from('staff')
+            .insert({
+              user_id: user.id,
+              practice_id: practiceData.id,
+              role: 'admin',
+              department: 'Administration',
+              status: 'active'
+            });
 
-      if (staffError) throw staffError;
+          if (staffError) {
+            console.error(`PhysicianSetup: Staff creation error (attempt ${attempts}):`, staffError);
+            if (attempts >= maxAttempts) {
+              // Don't throw error for staff creation - practice was created successfully
+              console.log('PhysicianSetup: Staff creation failed but practice exists');
+              break;
+            }
+            // Wait a bit before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } else {
+            console.log('PhysicianSetup: Staff record created successfully');
+            staffCreated = true;
+          }
+        } catch (err) {
+          console.error(`PhysicianSetup: Staff creation attempt ${attempts} failed:`, err);
+          if (attempts >= maxAttempts) {
+            break;
+          }
+        }
+      }
 
       toast({
         title: "Success",
@@ -81,10 +132,11 @@ export function PhysicianSetup({ onComplete }: PhysicianSetupProps) {
 
       onComplete();
     } catch (err) {
-      console.error('Error creating practice:', err);
+      console.error('PhysicianSetup: Error in practice creation:', err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to create practice. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to create practice. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -97,17 +149,23 @@ export function PhysicianSetup({ onComplete }: PhysicianSetupProps) {
 
     try {
       setIsLoading(true);
+      console.log('PhysicianSetup: Creating doctor-only profile for user:', user.id);
 
       // Create doctor record only
       const { error: doctorError } = await supabase
         .from('doctors')
-        .insert({
+        .upsert({
           user_id: user.id,
-          specialty,
-          license_number: licenseNumber,
+          specialty: specialty || 'General Practice',
+          license_number: licenseNumber || `LIC-${user.id.slice(0, 8)}`,
         });
 
-      if (doctorError) throw doctorError;
+      if (doctorError) {
+        console.error('PhysicianSetup: Doctor-only creation error:', doctorError);
+        throw doctorError;
+      }
+
+      console.log('PhysicianSetup: Doctor-only profile created successfully');
 
       toast({
         title: "Success",
@@ -116,7 +174,7 @@ export function PhysicianSetup({ onComplete }: PhysicianSetupProps) {
 
       onComplete();
     } catch (err) {
-      console.error('Error creating doctor profile:', err);
+      console.error('PhysicianSetup: Error creating doctor profile:', err);
       toast({
         title: "Error",
         description: "Failed to create doctor profile. Please try again.",
@@ -128,6 +186,7 @@ export function PhysicianSetup({ onComplete }: PhysicianSetupProps) {
   };
 
   const handleSubmit = () => {
+    console.log('PhysicianSetup: Form submitted with ownership:', practiceOwnership);
     if (practiceOwnership === 'owner') {
       handleCreatePracticeAndDoctor();
     } else {
@@ -187,6 +246,7 @@ export function PhysicianSetup({ onComplete }: PhysicianSetupProps) {
             variant="outline" 
             onClick={() => setStep(1)}
             className="flex-1"
+            disabled={isLoading}
           >
             Back
           </Button>

@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LoginForm } from "@/components/Auth/LoginForm";
@@ -5,7 +6,7 @@ import { PhysicianSetup } from "@/components/Auth/PhysicianSetup";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Login() {
-  const { isAuthenticated, profile, isLoading, needsPracticeSetup, setNeedsPracticeSetup } = useAuth();
+  const { isAuthenticated, profile, isLoading, needsPracticeSetup, setNeedsPracticeSetup, refreshPracticeStatus } = useAuth();
   const navigate = useNavigate();
   const [showDoctorSetup, setShowDoctorSetup] = useState(false);
 
@@ -53,10 +54,18 @@ export default function Login() {
     }
   }, [isAuthenticated, profile, isLoading, needsPracticeSetup, showDoctorSetup, navigate]);
 
-  const handleSetupComplete = () => {
-    console.log('Login: Doctor setup completed');
+  const handleSetupComplete = async () => {
+    console.log('Login: Doctor setup completed, refreshing practice status');
     setShowDoctorSetup(false);
     setNeedsPracticeSetup(false);
+    
+    // Refresh the practice status to make sure everything is properly set
+    try {
+      await refreshPracticeStatus();
+    } catch (err) {
+      console.error('Login: Error refreshing practice status:', err);
+    }
+    
     // The redirect will happen in the useEffect above
   };
 
