@@ -18,24 +18,26 @@ export function DoctorDetailsForm({
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Doctor Information</h3>
-      <p className="text-sm text-gray-600">These fields are pre-filled for demo purposes</p>
+      <p className="text-sm text-gray-600">Please enter your professional information</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="specialty">Medical Specialty</Label>
+          <Label htmlFor="specialty">Medical Specialty *</Label>
           <Input
             id="specialty"
             value={specialty}
             onChange={(e) => setSpecialty(e.target.value)}
-            placeholder="e.g., Cardiology, Orthopedics"
+            placeholder="e.g., Cardiology, Orthopedics, Internal Medicine"
+            required
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="license">License Number (Demo)</Label>
+          <Label htmlFor="license">Medical License Number *</Label>
           <Input
             id="license"
             value={licenseNumber}
             onChange={(e) => setLicenseNumber(e.target.value)}
-            placeholder="Demo license number"
+            placeholder="Enter your license number"
+            required
           />
         </div>
       </div>
