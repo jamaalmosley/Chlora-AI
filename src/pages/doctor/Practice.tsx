@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,15 +56,7 @@ export default function DoctorPractice() {
       setError(null);
       console.log('DoctorPractice: Starting practice data fetch for user:', user.id);
 
-      // Call the RLS fix function to ensure policies are working properly
-      try {
-        const { data: fixResult } = await supabase.functions.invoke('fix-rls-policies');
-        console.log('DoctorPractice: RLS policies fixed:', fixResult);
-      } catch (fixError) {
-        console.log('DoctorPractice: RLS fix warning (continuing):', fixError);
-      }
-
-      // Direct query to staff table to find user's practices
+      // Check if user has any staff records
       const { data: staffData, error: staffError } = await supabase
         .from('staff')
         .select('practice_id, role, status')
@@ -90,7 +81,7 @@ export default function DoctorPractice() {
       const staffRecord = staffData[0];
       setIsOwner(staffRecord.role === 'admin');
 
-      // Fetch practice details using direct query
+      // Fetch practice details
       const { data: practiceData, error: practiceError } = await supabase
         .from('practices')
         .select('*')
@@ -106,31 +97,33 @@ export default function DoctorPractice() {
       setPractice(practiceData);
       setNoPracticeFound(false);
 
-      // Fetch other staff members for this practice
-      const { data: allStaffData, error: allStaffError } = await supabase
-        .from('staff')
-        .select('id, role, department, status, user_id')
-        .eq('practice_id', practiceData.id)
-        .eq('status', 'active')
-        .neq('user_id', user.id);
+      // If user is an admin, fetch other staff members
+      if (staffRecord.role === 'admin') {
+        const { data: allStaffData, error: allStaffError } = await supabase
+          .from('staff')
+          .select('id, role, department, status, user_id')
+          .eq('practice_id', practiceData.id)
+          .eq('status', 'active')
+          .neq('user_id', user.id);
 
-      if (!allStaffError && allStaffData) {
-        // Fetch profiles for each staff member
-        const staffWithProfiles = await Promise.all(
-          allStaffData.map(async (staff) => {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('first_name, last_name')
-              .eq('id', staff.user_id)
-              .single();
+        if (!allStaffError && allStaffData) {
+          // Fetch profiles for each staff member
+          const staffWithProfiles = await Promise.all(
+            allStaffData.map(async (staff) => {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('first_name, last_name')
+                .eq('id', staff.user_id)
+                .single();
 
-            return {
-              ...staff,
-              profiles: profileData
-            };
-          })
-        );
-        setStaffMembers(staffWithProfiles);
+              return {
+                ...staff,
+                profiles: profileData
+              };
+            })
+          );
+          setStaffMembers(staffWithProfiles);
+        }
       }
 
       console.log('DoctorPractice: Practice setup complete');

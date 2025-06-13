@@ -4,9 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { LoginForm } from "@/components/Auth/LoginForm";
 import { PhysicianSetup } from "@/components/Auth/PhysicianSetup";
 import { useAuth } from "@/context/AuthContext";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Login() {
-  const { isAuthenticated, profile, isLoading, needsPracticeSetup, setNeedsPracticeSetup, refreshPracticeStatus } = useAuth();
+  const { isAuthenticated, profile, isLoading, needsPracticeSetup, setNeedsPracticeSetup, refreshPracticeStatus, error } = useAuth();
   const navigate = useNavigate();
   const [showDoctorSetup, setShowDoctorSetup] = useState(false);
 
@@ -16,11 +17,17 @@ export default function Login() {
       profile: profile?.role, 
       isLoading, 
       needsPracticeSetup, 
-      showDoctorSetup 
+      showDoctorSetup,
+      error
     });
     
     // Don't do anything while loading
     if (isLoading) {
+      return;
+    }
+
+    // If there's an authentication error, don't redirect
+    if (error) {
       return;
     }
 
@@ -52,7 +59,7 @@ export default function Login() {
         navigate("/patient", { replace: true });
       }
     }
-  }, [isAuthenticated, profile, isLoading, needsPracticeSetup, showDoctorSetup, navigate]);
+  }, [isAuthenticated, profile, isLoading, needsPracticeSetup, showDoctorSetup, navigate, error]);
 
   const handleSetupComplete = async () => {
     console.log('Login: Doctor setup completed, refreshing practice status');
@@ -131,6 +138,13 @@ export default function Login() {
             Streamlined Healthcare Management
           </p>
         </div>
+        
+        {error && (
+          <Alert variant="destructive" className="mb-6 max-w-md mx-auto">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
         <LoginForm onDoctorSignupStart={handleDoctorSignupStart} onSetupComplete={handleSetupComplete} />
         <p className="text-center mt-6 text-sm text-gray-500">
           © 2025 Chlora. All rights reserved.

@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,31 +49,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('AuthContext: Checking practice setup for doctor:', userId);
 
-      // Check if doctor has any staff records (is part of a practice)
+      // Simple check - does the doctor have any staff records?
       const { data: staffData, error: staffError } = await supabase
         .from('staff')
-        .select('id, practice_id, role, status')
+        .select('id')
         .eq('user_id', userId)
         .eq('status', 'active')
         .limit(1);
 
       if (staffError) {
         console.error('AuthContext: Error checking staff records:', staffError);
-        // If we can't check due to RLS issues, check if doctor record exists
-        const { data: doctorData, error: doctorError } = await supabase
-          .from('doctors')
-          .select('id')
-          .eq('user_id', userId)
-          .limit(1);
-
-        if (doctorError) {
-          console.error('AuthContext: Error checking doctor record:', doctorError);
-          setNeedsPracticeSetup(true);
-          return;
-        }
-
-        // If doctor record exists but can't check staff, assume they need practice setup
-        setNeedsPracticeSetup(!doctorData || doctorData.length === 0);
+        // If we can't check staff records, assume they need setup
+        setNeedsPracticeSetup(true);
         return;
       }
 
@@ -128,21 +116,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Get initial session
     const getInitialSession = async () => {
-      console.log('AuthContext: Getting initial session');
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      console.log('AuthContext: Initial session:', initialSession);
-
-      if (initialSession?.user) {
-        setSession(initialSession);
-        setUser(initialSession.user);
-        try {
-          await fetchProfile(initialSession.user.id);
-        } catch (err) {
-          console.error('AuthContext: Error fetching initial profile:', err);
+      try {
+        console.log('AuthContext: Getting initial session');
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('AuthContext: Error getting initial session:', error);
+          setIsLoading(false);
+          return;
         }
+
+        console.log('AuthContext: Initial session:', initialSession?.user?.id || 'none');
+
+        if (initialSession?.user) {
+          setSession(initialSession);
+          setUser(initialSession.user);
+          try {
+            await fetchProfile(initialSession.user.id);
+          } catch (err) {
+            console.error('AuthContext: Error fetching initial profile:', err);
+            setError('Failed to load user profile');
+          }
+        }
+      } catch (err) {
+        console.error('AuthContext: Unexpected error in getInitialSession:', err);
+        setError('Authentication initialization failed');
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
 
     getInitialSession();
@@ -150,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('AuthContext: Auth state changed:', event, session?.user?.id);
+        console.log('AuthContext: Auth state changed:', event, session?.user?.id || 'none');
         
         setSession(session);
         setUser(session?.user ?? null);
@@ -161,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await fetchProfile(session.user.id);
           } catch (err) {
             console.error('AuthContext: Error fetching profile on auth change:', err);
+            setError('Failed to load user profile');
           }
         } else {
           setProfile(null);
