@@ -10,6 +10,16 @@ export default function Login() {
   const { isAuthenticated, profile, isLoading, needsPracticeSetup, setNeedsPracticeSetup, refreshPracticeStatus, error } = useAuth();
   const navigate = useNavigate();
   const [showDoctorSetup, setShowDoctorSetup] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  // Set a timeout for loading state
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setLoadingTimeout(true);
+    }, 15000); // 15 seconds
+
+    return () => clearTimeout(timeout);
+  }, []);
 
   useEffect(() => {
     console.log('Login component state:', { 
@@ -21,8 +31,8 @@ export default function Login() {
       error
     });
     
-    // Don't do anything while loading
-    if (isLoading) {
+    // Don't do anything while loading (unless timeout)
+    if (isLoading && !loadingTimeout) {
       return;
     }
 
@@ -59,7 +69,7 @@ export default function Login() {
         navigate("/patient", { replace: true });
       }
     }
-  }, [isAuthenticated, profile, isLoading, needsPracticeSetup, showDoctorSetup, navigate, error]);
+  }, [isAuthenticated, profile, isLoading, needsPracticeSetup, showDoctorSetup, navigate, error, loadingTimeout]);
 
   const handleSetupComplete = async () => {
     console.log('Login: Doctor setup completed, refreshing practice status');
@@ -81,13 +91,31 @@ export default function Login() {
     // Don't immediately show setup - wait for profile and needsPracticeSetup to be set
   };
 
-  // Show loading while checking auth status
-  if (isLoading) {
+  // Show loading while checking auth status (with timeout message)
+  if (isLoading && !loadingTimeout) {
     console.log('Login: Showing loading screen');
     return (
       <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-medical-primary"></div>
         <p className="mt-4 text-gray-600">Checking authentication...</p>
+      </div>
+    );
+  }
+
+  // Show timeout message if loading too long
+  if (isLoading && loadingTimeout) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-medical-light to-white flex flex-col justify-center items-center p-4">
+        <div className="text-center max-w-md">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-medical-primary mx-auto mb-4"></div>
+          <p className="text-gray-600 mb-4">Authentication is taking longer than usual...</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-medical-primary text-white px-4 py-2 rounded hover:bg-medical-dark"
+          >
+            Refresh Page
+          </button>
+        </div>
       </div>
     );
   }

@@ -112,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let isMounted = true;
     console.log('AuthContext: Setting up auth state listener');
     
     // Get initial session
@@ -122,27 +123,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (error) {
           console.error('AuthContext: Error getting initial session:', error);
-          setIsLoading(false);
+          if (isMounted) {
+            setError(error.message);
+            setIsLoading(false);
+          }
           return;
         }
 
         console.log('AuthContext: Initial session:', initialSession?.user?.id || 'none');
 
-        if (initialSession?.user) {
+        if (initialSession?.user && isMounted) {
           setSession(initialSession);
           setUser(initialSession.user);
+          
+          // Set a timeout to prevent infinite loading
+          const timeoutId = setTimeout(() => {
+            if (isMounted) {
+              console.log('AuthContext: Profile fetch timeout, continuing anyway');
+              setIsLoading(false);
+            }
+          }, 10000); // 10 second timeout
+
           try {
             await fetchProfile(initialSession.user.id);
+            clearTimeout(timeoutId);
           } catch (err) {
             console.error('AuthContext: Error fetching initial profile:', err);
-            setError('Failed to load user profile');
+            if (isMounted) {
+              setError('Failed to load user profile');
+            }
           }
+        }
+        
+        if (isMounted) {
+          setIsLoading(false);
         }
       } catch (err) {
         console.error('AuthContext: Unexpected error in getInitialSession:', err);
-        setError('Authentication initialization failed');
-      } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setError('Authentication initialization failed');
+          setIsLoading(false);
+        }
       }
     };
 
@@ -151,6 +172,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return;
+        
         console.log('AuthContext: Auth state changed:', event, session?.user?.id || 'none');
         
         setSession(session);
@@ -158,12 +181,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setError(null);
 
         if (session?.user) {
-          try {
-            await fetchProfile(session.user.id);
-          } catch (err) {
-            console.error('AuthContext: Error fetching profile on auth change:', err);
-            setError('Failed to load user profile');
-          }
+          // Don't block the auth state change on profile fetching
+          setTimeout(async () => {
+            if (!isMounted) return;
+            try {
+              await fetchProfile(session.user.id);
+            } catch (err) {
+              console.error('AuthContext: Error fetching profile on auth change:', err);
+              if (isMounted) {
+                setError('Failed to load user profile');
+              }
+            }
+          }, 0);
         } else {
           setProfile(null);
           setNeedsPracticeSetup(false);
@@ -179,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
