@@ -80,22 +80,24 @@ export function PhysicianSetup({ onComplete }: PhysicianSetupProps) {
       }
       console.log('PhysicianSetup: Practice created successfully:', practiceData);
 
-      // Step 2: Create/update doctor record
-      console.log('PhysicianSetup: Creating doctor record');
+      // Step 2: Update doctor record (using upsert to handle existing records)
+      console.log('PhysicianSetup: Updating doctor record');
       const { error: doctorError } = await supabase
         .from('doctors')
         .upsert({
           user_id: user.id,
           specialty: specialty || 'General Practice',
           license_number: licenseNumber || `LIC-${user.id.slice(0, 8)}`,
+        }, {
+          onConflict: 'user_id'
         });
 
       if (doctorError) {
-        console.error('PhysicianSetup: Doctor creation error:', doctorError);
+        console.error('PhysicianSetup: Doctor update error:', doctorError);
         // Don't throw error here - practice was created successfully
-        console.log('PhysicianSetup: Practice created but doctor record creation failed');
+        console.log('PhysicianSetup: Practice created but doctor record update failed');
       } else {
-        console.log('PhysicianSetup: Doctor record created successfully');
+        console.log('PhysicianSetup: Doctor record updated successfully');
       }
 
       // Step 3: Add user as admin staff member
@@ -150,33 +152,35 @@ export function PhysicianSetup({ onComplete }: PhysicianSetupProps) {
 
     try {
       setIsLoading(true);
-      console.log('PhysicianSetup: Creating doctor-only profile for user:', user.id);
+      console.log('PhysicianSetup: Updating doctor profile for user:', user.id);
 
-      // Create doctor record only
+      // Update doctor record using upsert (this handles both insert and update cases)
       const { error: doctorError } = await supabase
         .from('doctors')
         .upsert({
           user_id: user.id,
           specialty: specialty || 'General Practice',
           license_number: licenseNumber || `LIC-${user.id.slice(0, 8)}`,
+        }, {
+          onConflict: 'user_id'
         });
 
       if (doctorError) {
-        console.error('PhysicianSetup: Doctor-only creation error:', doctorError);
-        throw new Error(`Failed to create doctor profile: ${doctorError.message}`);
+        console.error('PhysicianSetup: Doctor profile update error:', doctorError);
+        throw new Error(`Failed to update doctor profile: ${doctorError.message}`);
       }
 
-      console.log('PhysicianSetup: Doctor-only profile created successfully');
+      console.log('PhysicianSetup: Doctor profile updated successfully');
 
       toast({
         title: "Success",
-        description: "Your doctor profile has been created. You can now be added to a practice by an administrator.",
+        description: "Your doctor profile has been updated. You can now be added to a practice by an administrator.",
       });
 
       onComplete();
     } catch (err) {
-      console.error('PhysicianSetup: Error creating doctor profile:', err);
-      const errorMessage = err instanceof Error ? err.message : "Failed to create doctor profile. Please try again.";
+      console.error('PhysicianSetup: Error updating doctor profile:', err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to update doctor profile. Please try again.";
       toast({
         title: "Error",
         description: errorMessage,
