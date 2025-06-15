@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Mail, Phone, Award, Clipboard, MapPin, Users, Clock, Edit } from "lucide-react";
+import { Mail, Phone, Award, Clipboard, MapPin, Users, Clock, Edit, Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -32,9 +32,16 @@ const DoctorProfile = () => {
   const [doctorData, setDoctorData] = useState<DoctorData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isEducationDialogOpen, setIsEducationDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     working_hours: '',
     contact_address: ''
+  });
+  const [educationForm, setEducationForm] = useState({
+    education: [] as string[],
+    certifications: [] as string[],
+    newEducation: '',
+    newCertification: ''
   });
 
   useEffect(() => {
@@ -56,6 +63,12 @@ const DoctorProfile = () => {
           working_hours: data.working_hours || '',
           contact_address: data.contact_address || ''
         });
+        setEducationForm({
+          education: data.education || [],
+          certifications: data.certifications || [],
+          newEducation: '',
+          newCertification: ''
+        });
       } catch (error) {
         console.error('Error loading doctor data:', error);
       } finally {
@@ -70,6 +83,10 @@ const DoctorProfile = () => {
 
   const handleEditProfile = () => {
     setIsEditDialogOpen(true);
+  };
+
+  const handleEditEducation = () => {
+    setIsEducationDialogOpen(true);
   };
 
   const handleViewSchedule = () => {
@@ -117,6 +134,75 @@ const DoctorProfile = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleSaveEducation = async () => {
+    if (!doctorData) return;
+
+    try {
+      const { error } = await supabase
+        .from('doctors')
+        .update({
+          education: educationForm.education,
+          certifications: educationForm.certifications
+        })
+        .eq('id', doctorData.id);
+
+      if (error) throw error;
+
+      setDoctorData(prev => prev ? {
+        ...prev,
+        education: educationForm.education,
+        certifications: educationForm.certifications
+      } : null);
+
+      setIsEducationDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "Education and certifications updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error updating education:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update education and certifications.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addEducation = () => {
+    if (educationForm.newEducation.trim()) {
+      setEducationForm(prev => ({
+        ...prev,
+        education: [...prev.education, prev.newEducation.trim()],
+        newEducation: ''
+      }));
+    }
+  };
+
+  const removeEducation = (index: number) => {
+    setEducationForm(prev => ({
+      ...prev,
+      education: prev.education.filter((_, i) => i !== index)
+    }));
+  };
+
+  const addCertification = () => {
+    if (educationForm.newCertification.trim()) {
+      setEducationForm(prev => ({
+        ...prev,
+        certifications: [...prev.certifications, prev.newCertification.trim()],
+        newCertification: ''
+      }));
+    }
+  };
+
+  const removeCertification = (index: number) => {
+    setEducationForm(prev => ({
+      ...prev,
+      certifications: prev.certifications.filter((_, i) => i !== index)
+    }));
   };
 
   if (isLoading) {
@@ -208,10 +294,16 @@ const DoctorProfile = () => {
           {/* Education & Certifications */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center">
-                <Award className="mr-2 h-5 w-5" />
-                Education & Certifications
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center">
+                  <Award className="mr-2 h-5 w-5" />
+                  Education & Certifications
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={handleEditEducation}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="mb-4">
@@ -324,6 +416,87 @@ const DoctorProfile = () => {
                 Cancel
               </Button>
               <Button onClick={handleSaveProfile}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Education & Certifications Dialog */}
+      <Dialog open={isEducationDialogOpen} onOpenChange={setIsEducationDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Education & Certifications</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Education Section */}
+            <div>
+              <Label className="text-base font-medium">Education</Label>
+              <div className="space-y-2 mt-2">
+                {educationForm.education.map((edu, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input value={edu} readOnly className="flex-1" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeEducation(index)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={educationForm.newEducation}
+                    onChange={(e) => setEducationForm(prev => ({ ...prev, newEducation: e.target.value }))}
+                    placeholder="Add new education entry"
+                    className="flex-1"
+                    onKeyPress={(e) => e.key === 'Enter' && addEducation()}
+                  />
+                  <Button onClick={addEducation} size="sm">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Certifications Section */}
+            <div>
+              <Label className="text-base font-medium">Certifications</Label>
+              <div className="space-y-2 mt-2">
+                {educationForm.certifications.map((cert, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input value={cert} readOnly className="flex-1" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeCertification(index)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={educationForm.newCertification}
+                    onChange={(e) => setEducationForm(prev => ({ ...prev, newCertification: e.target.value }))}
+                    placeholder="Add new certification"
+                    className="flex-1"
+                    onKeyPress={(e) => e.key === 'Enter' && addCertification()}
+                  />
+                  <Button onClick={addCertification} size="sm">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setIsEducationDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEducation}>
                 Save Changes
               </Button>
             </div>
