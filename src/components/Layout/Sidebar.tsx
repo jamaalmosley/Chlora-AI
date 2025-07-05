@@ -1,204 +1,119 @@
-
-import { Link, useLocation } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
-  Calendar,
-  ClipboardList,
-  Home,
-  MessageSquare,
-  Users,
-  User,
-  Settings,
   LayoutDashboard,
+  Users,
+  Calendar,
   FileText,
-  Clock,
-  WalletCards,
+  Settings,
   Building,
+  User,
 } from "lucide-react";
+import { NavLink } from "react-router-dom";
 
-export default function Sidebar() {
-  const { user, profile } = useAuth();
-  const location = useLocation();
+interface NavItem {
+  label: string;
+  path: string;
+  icon: any;
+}
 
-  if (!user) return null;
-
-  const isActive = (path: string) => location.pathname === path;
-
-  const patientLinks = [
+export function Sidebar() {
+  const doctorNavigationItems: NavItem[] = [
     {
-      name: "Dashboard",
-      path: "/patient",
-      icon: <Home className="h-5 w-5" />,
+      label: "Dashboard",
+      path: "/doctor/dashboard",
+      icon: LayoutDashboard,
     },
     {
-      name: "Appointments",
-      path: "/patient/appointments",
-      icon: <Calendar className="h-5 w-5" />,
-    },
-    {
-      name: "Medical Records",
-      path: "/patient/records",
-      icon: <FileText className="h-5 w-5" />,
-    },
-    {
-      name: "Medications",
-      path: "/patient/medications",
-      icon: <ClipboardList className="h-5 w-5" />,
-    },
-    {
-      name: "Payments",
-      path: "/patient/payments",
-      icon: <WalletCards className="h-5 w-5" />,
-    },
-    {
-      name: "Chat",
-      path: "/patient/chat",
-      icon: <MessageSquare className="h-5 w-5" />,
-    },
-    {
-      name: "Profile",
-      path: "/patient/profile",
-      icon: <User className="h-5 w-5" />,
-    },
-  ];
-
-  const doctorLinks = [
-    {
-      name: "Dashboard",
-      path: "/doctor",
-      icon: <LayoutDashboard className="h-5 w-5" />,
-    },
-    {
-      name: "Schedule",
-      path: "/doctor/schedule",
-      icon: <Clock className="h-5 w-5" />,
-    },
-    {
-      name: "Patients",
-      path: "/doctor/patients",
-      icon: <Users className="h-5 w-5" />,
-    },
-    {
-      name: "My Practice",
+      label: "Practice",
       path: "/doctor/practice",
-      icon: <Building className="h-5 w-5" />,
+      icon: Building,
     },
     {
-      name: "Staff",
+      label: "Patients",
+      path: "/doctor/patients",
+      icon: Users,
+    },
+    {
+      label: "Appointments",
+      path: "/doctor/appointments",
+      icon: Calendar,
+    },
+    {
+      label: "Staff",
       path: "/doctor/staff",
-      icon: <Users className="h-5 w-5" />,
+      icon: Users,
     },
     {
-      name: "Surgeries",
-      path: "/doctor/surgeries",
-      icon: <ClipboardList className="h-5 w-5" />,
+      label: "Billing",
+      path: "/doctor/billing",
+      icon: FileText,
     },
     {
-      name: "Profile",
-      path: "/doctor/profile",
-      icon: <User className="h-5 w-5" />,
+      label: "Settings",
+      path: "/doctor/settings",
+      icon: Settings,
     },
   ];
 
-  const adminLinks = [
+  const patientNavigationItems: NavItem[] = [
     {
-      name: "Dashboard",
-      path: "/admin",
-      icon: <LayoutDashboard className="h-5 w-5" />,
+      label: "Dashboard",
+      path: "/patient/dashboard",
+      icon: LayoutDashboard,
     },
     {
-      name: "Practices",
-      path: "/admin/practices",
-      icon: <Building className="h-5 w-5" />,
+      label: "Appointments",
+      path: "/patient/appointments",
+      icon: Calendar,
     },
     {
-      name: "Doctors",
-      path: "/admin/doctors",
-      icon: <Users className="h-5 w-5" />,
+      label: "Billing",
+      path: "/patient/billing",
+      icon: FileText,
     },
     {
-      name: "Patients",
-      path: "/admin/patients",
-      icon: <Users className="h-5 w-5" />,
+      label: "Chat",
+      path: "/patient/chat",
+      icon: Users,
     },
     {
-      name: "Reports",
-      path: "/admin/reports",
-      icon: <FileText className="h-5 w-5" />,
+      label: "Settings",
+      path: "/patient/settings",
+      icon: Settings,
     },
     {
-      name: "Settings",
-      path: "/admin/settings",
-      icon: <Settings className="h-5 w-5" />,
+      label: "Assigned Physician",
+      path: "/patient/physician",
+      icon: User,
     },
   ];
 
-  // Get the user role from profile, fallback to checking user.role if available
-  const userRole = profile?.role || user?.user_metadata?.role || "patient";
-  
-  const links = {
-    patient: patientLinks,
-    doctor: doctorLinks,
-    admin: adminLinks,
-  }[userRole] || patientLinks; // Default to patient links if role is unclear
+  // Determine user role (replace with actual logic)
+  const userRole = localStorage.getItem("userRole") || "doctor";
 
-  const getPortalTitle = () => {
-    switch (userRole) {
-      case "doctor":
-        return "Doctor Portal";
-      case "admin":
-        return "Admin Portal";
-      case "patient":
-      default:
-        return "Patient Portal";
-    }
-  };
+  const navigationItems =
+    userRole === "doctor" ? doctorNavigationItems : patientNavigationItems;
 
   return (
-    <div className="hidden md:block w-64 bg-sidebar text-sidebar-foreground border-r border-gray-200">
-      <div className="h-full py-6 flex flex-col">
-        <div className="px-4 mb-6">
-          <h2 className="text-lg font-semibold text-sidebar-primary">
-            {getPortalTitle()}
-          </h2>
-        </div>
-        <div className="space-y-1 px-3 flex-1">
-          {links?.map((link) => (
-            <Link to={link.path} key={link.path}>
-              <Button
-                variant="ghost"
-                className={cn(
-                  "w-full justify-start",
-                  isActive(link.path)
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : ""
-                )}
-              >
-                {link.icon}
-                <span className="ml-2">{link.name}</span>
-              </Button>
-            </Link>
-          ))}
-        </div>
-        {userRole === "patient" && (
-          <div className="p-4 mt-auto">
-            <div className="rounded-lg bg-medical-light p-3">
-              <h3 className="font-medium text-medical-primary mb-1">Need help?</h3>
-              <p className="text-sm text-gray-600 mb-2">
-                Use our chatbot for assistance or questions
-              </p>
-              <Link to="/patient/chat">
-                <Button size="sm" className="w-full bg-medical-primary text-white">
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Open Chat
-                </Button>
-              </Link>
-            </div>
-          </div>
-        )}
-      </div>
+    <div className="w-64 bg-gray-100 h-screen py-8 px-4">
+      <nav className="space-y-4">
+        {navigationItems.map((item) => (
+          <NavLink
+            key={item.label}
+            to={item.path}
+            className={({ isActive }) =>
+              `flex items-center px-3 py-2 text-sm font-medium rounded-md
+              ${
+                isActive
+                  ? "bg-gray-200 text-gray-900"
+                  : "text-gray-700 hover:bg-gray-200 hover:text-gray-900"
+              }`
+            }
+          >
+            <item.icon className="mr-2 h-4 w-4" />
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
     </div>
   );
 }
