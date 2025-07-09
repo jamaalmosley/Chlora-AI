@@ -29,6 +29,13 @@ import DoctorSurgeries from "./pages/doctor/Surgeries";
 import DoctorProfile from "./pages/doctor/Profile";
 import DoctorPractice from "./pages/doctor/Practice";
 import DoctorStaff from "./pages/doctor/Staff";
+import DoctorAppointments from "./pages/doctor/Appointments";
+import DoctorBilling from "./pages/doctor/Billing";
+import DoctorSettings from "./pages/doctor/Settings";
+
+// Patient Pages (additional)
+import PatientBilling from "./pages/patient/Billing";
+import PatientSettings from "./pages/patient/Settings";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -153,6 +160,30 @@ const AppContent = () => {
           </ProtectedRoute>
         } 
       />
+      <Route 
+        path="/patient/billing" 
+        element={
+          <ProtectedRoute allowedRoles={['patient']}>
+            <PatientBilling />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/patient/settings" 
+        element={
+          <ProtectedRoute allowedRoles={['patient']}>
+            <PatientSettings />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/patient/dashboard" 
+        element={
+          <ProtectedRoute allowedRoles={['patient']}>
+            <PatientDashboard />
+          </ProtectedRoute>
+        } 
+      />
       
       {/* Doctor routes */}
       <Route 
@@ -168,6 +199,38 @@ const AppContent = () => {
         element={
           <ProtectedRoute allowedRoles={['doctor']}>
             <DoctorPatients />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/doctor/dashboard" 
+        element={
+          <ProtectedRoute allowedRoles={['doctor']}>
+            <DoctorDashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/doctor/appointments" 
+        element={
+          <ProtectedRoute allowedRoles={['doctor']}>
+            <DoctorAppointments />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/doctor/billing" 
+        element={
+          <ProtectedRoute allowedRoles={['doctor']}>
+            <DoctorBilling />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/doctor/settings" 
+        element={
+          <ProtectedRoute allowedRoles={['doctor']}>
+            <DoctorSettings />
           </ProtectedRoute>
         } 
       />
