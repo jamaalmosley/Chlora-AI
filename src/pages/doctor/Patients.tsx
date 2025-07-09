@@ -170,7 +170,12 @@ export default function DoctorPatients() {
         </CardHeader>
         <CardContent>
           <Button 
-            onClick={() => setShowInviteDialog(true)}
+            onClick={() => {
+              console.log('Invite Patient button clicked');
+              console.log('Current practiceId:', practiceId);
+              console.log('Current practiceName:', practiceName);
+              setShowInviteDialog(true);
+            }}
             className="bg-medical-primary hover:bg-medical-dark"
           >
             <Mail className="mr-2 h-4 w-4" />

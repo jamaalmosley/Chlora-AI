@@ -81,6 +81,8 @@ export function InvitePatientDialog({
     }
   };
 
+  console.log('InvitePatientDialog render:', { open, practiceId, practiceName });
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
