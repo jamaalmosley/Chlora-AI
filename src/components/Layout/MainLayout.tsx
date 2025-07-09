@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "react-router-dom";
 import Navbar from "./Navbar";
-import Sidebar from "./Sidebar";
+import { Sidebar } from "./Sidebar";
 
 interface MainLayoutProps {
   children: ReactNode;

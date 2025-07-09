@@ -180,8 +180,10 @@ export default function DoctorPractice() {
               </CardHeader>
               <CardContent>
                 <CreatePracticeForm 
-                  onSuccess={handlePracticeCreated}
-                  onCancel={() => setShowCreateForm(false)}
+                  onPracticeCreated={() => {
+                    setShowCreateForm(false);
+                    fetchPracticeData();
+                  }}
                 />
               </CardContent>
             </Card>

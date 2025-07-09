@@ -85,7 +85,7 @@ export default function AssignedPhysician() {
         setAssignments(assignmentData || []);
       }
 
-      // Get physician requests (if we implement this feature)
+      // Get physician requests
       const { data: requestData, error: requestError } = await supabase
         .from('physician_patient_requests')
         .select(`
@@ -112,7 +112,7 @@ export default function AssignedPhysician() {
 
             return {
               ...request,
-              profiles: profileData
+              profiles: profileData || undefined
             };
           })
         );
