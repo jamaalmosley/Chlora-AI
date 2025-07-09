@@ -47,66 +47,22 @@ export function InvitePatientDialog({
         practiceName
       });
 
-      // First check if user already exists
-      const { data: existingProfiles } = await supabase
-        .from('profiles')
-        .select('id, role')
-        .eq('id', email.trim());
-
-      if (existingProfiles && existingProfiles.length > 0) {
-        // User exists, check if they're a patient
-        const profile = existingProfiles[0];
-        if (profile.role === 'patient') {
-          // Add existing patient to practice
-          const { data: patientData } = await supabase
-            .from('patients')
-            .select('id')
-            .eq('user_id', profile.id)
-            .single();
-
-          if (patientData) {
-            const { error } = await supabase
-              .from('patient_assignments')
-              .insert({
-                patient_id: patientData.id,
-                practice_id: practiceId,
-                assigned_by: user.id,
-                status: 'active'
-              });
-
-            if (error) throw error;
-
-            toast({
-              title: "Success",
-              description: "Existing patient added to practice successfully",
-            });
-          }
-        } else {
-          toast({
-            title: "Error",
-            description: "User exists but is not registered as a patient",
-            variant: "destructive",
-          });
-          return;
+      // Send invitation email via edge function
+      const { data, error } = await supabase.functions.invoke('invite-patient', {
+        body: {
+          email: email.trim(),
+          practiceId,
+          practiceName,
+          invitedBy: user.id
         }
-      } else {
-        // User doesn't exist, send invitation email
-        const { data, error } = await supabase.functions.invoke('invite-patient', {
-          body: {
-            email: email.trim(),
-            practiceId,
-            practiceName,
-            invitedBy: user.id
-          }
-        });
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        toast({
-          title: "Invitation Sent",
-          description: `An invitation has been sent to ${email.trim()} to join as a patient`,
-        });
-      }
+      toast({
+        title: "Invitation Sent",
+        description: `An invitation has been sent to ${email.trim()} to join as a patient`,
+      });
 
       // Reset form and close dialog
       setEmail("");
