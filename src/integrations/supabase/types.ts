@@ -598,6 +598,10 @@ export type Database = {
         Args: { p_practice_id: string }
         Returns: boolean
       }
+      user_is_practice_admin: {
+        Args: { p_practice_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
