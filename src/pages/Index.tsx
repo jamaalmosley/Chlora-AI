@@ -93,7 +93,7 @@ const Index = () => {
       {/* Benefits section */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Why Choose Surgical Harmony Connect</h2>
+          <h2 className="text-3xl font-bold text-center mb-12">Why Choose Chlora</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="flex gap-4">
@@ -152,7 +152,7 @@ const Index = () => {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to transform your surgical practice?</h2>
           <p className="text-xl opacity-90 mb-8 max-w-3xl mx-auto">
-            Join the leading surgical practices using Surgical Harmony Connect to improve patient outcomes and practice efficiency.
+            Join the leading surgical practices using Chlora to improve patient outcomes and practice efficiency.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Button 
