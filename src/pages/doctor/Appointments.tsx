@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, User, Plus } from "lucide-react";
+import { NewAppointmentDialog } from "@/components/Appointments/NewAppointmentDialog";
 
 interface Appointment {
   id: string;
@@ -15,6 +16,7 @@ interface Appointment {
 }
 
 export default function DoctorAppointments() {
+  const [showNewAppointmentDialog, setShowNewAppointmentDialog] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([
     {
       id: "1",
@@ -73,6 +75,10 @@ export default function DoctorAppointments() {
     (apt.date === new Date().toISOString().split('T')[0] && apt.status === 'scheduled')
   );
 
+  const handleNewAppointment = (newAppointment: Appointment) => {
+    setAppointments(prev => [...prev, newAppointment]);
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between mb-6">
@@ -80,7 +86,10 @@ export default function DoctorAppointments() {
           <Calendar className="h-8 w-8 text-medical-primary" />
           <h1 className="text-3xl font-bold text-medical-primary">Appointments</h1>
         </div>
-        <Button className="bg-medical-primary hover:bg-medical-dark">
+        <Button 
+          className="bg-medical-primary hover:bg-medical-dark"
+          onClick={() => setShowNewAppointmentDialog(true)}
+        >
           <Plus className="mr-2 h-4 w-4" />
           New Appointment
         </Button>
@@ -199,6 +208,12 @@ export default function DoctorAppointments() {
           </div>
         </CardContent>
       </Card>
+
+      <NewAppointmentDialog
+        open={showNewAppointmentDialog}
+        onOpenChange={setShowNewAppointmentDialog}
+        onAppointmentCreated={handleNewAppointment}
+      />
     </div>
   );
 }
