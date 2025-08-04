@@ -82,10 +82,10 @@ export function NewAppointmentDialog({
         return;
       }
 
-      // Get or create doctor record
+      // Get doctor record - use array query to avoid single() issues
       console.log('Looking for doctor record for user:', user.id);
       
-      let { data: doctorData, error: doctorError } = await supabase
+      const { data: doctorData, error: doctorError } = await supabase
         .from('doctors')
         .select('id')
         .eq('user_id', user.id);
@@ -102,39 +102,13 @@ export function NewAppointmentDialog({
 
       console.log('Doctor query result:', doctorData);
 
-      // If no doctor record exists, create one
       if (!doctorData || doctorData.length === 0) {
-        console.log('No doctor record found, creating one...');
-        const { data: newDoctorData, error: createDoctorError } = await supabase
-          .from('doctors')
-          .insert({
-            user_id: user.id,
-            specialty: 'General Practice',
-            license_number: `TEMP-${user.id.substring(0, 8)}`,
-            status: 'active'
-          })
-          .select('id')
-          .single();
-
-        if (createDoctorError) {
-          console.error('Doctor creation error:', createDoctorError);
-          toast({
-            title: "Setup Required", 
-            description: "Please contact support to complete your doctor profile setup.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (!newDoctorData) {
-          toast({
-            title: "Error",
-            description: "Failed to create doctor record.",
-            variant: "destructive",
-          });
-          return;
-        }
-        doctorData = [newDoctorData];
+        toast({
+          title: "Profile Setup Required",
+          description: "Your doctor profile needs to be set up. Please visit your Profile page to complete setup.",
+          variant: "destructive",
+        });
+        return;
       }
 
       const doctorId = doctorData[0].id;
