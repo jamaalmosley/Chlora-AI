@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 interface NewAppointmentDialogProps {
   open: boolean;
@@ -35,6 +37,7 @@ export function NewAppointmentDialog({
   prefilledTime = "",
   prefilledDate = "",
 }: NewAppointmentDialogProps) {
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const [formData, setFormData] = useState({
@@ -70,16 +73,103 @@ export function NewAppointmentDialog({
         return;
       }
 
-      // Create new appointment object
+      if (!user) {
+        toast({
+          title: "Authentication Error",
+          description: "You must be logged in to create appointments.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get doctor record
+      const { data: doctorData, error: doctorError } = await supabase
+        .from('doctors')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (doctorError || !doctorData) {
+        toast({
+          title: "Error",
+          description: "Could not find doctor record.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // For now, create a simple patient record for the appointment
+      // In a real app, you'd want proper patient lookup/creation with user accounts
+      const patientNames = formData.patientName.trim().split(' ');
+      const firstName = patientNames[0] || '';
+      const lastName = patientNames.slice(1).join(' ') || '';
+
+      // Try to find existing patient by name (simplified approach)
+      let { data: existingPatients } = await supabase
+        .from('patients')
+        .select('id, user_id, profiles!inner(first_name, last_name)')
+        .eq('profiles.first_name', firstName)
+        .eq('profiles.last_name', lastName);
+
+      let patientId;
+
+      if (existingPatients && existingPatients.length > 0) {
+        patientId = existingPatients[0].id;
+      } else {
+        // Create a simple patient record without user linkage for now
+        // This allows basic appointment functionality
+        const { data: patientData, error: patientError } = await supabase
+          .from('patients')
+          .insert({
+            user_id: null // Temporary approach - in real app would require proper patient registration
+          })
+          .select('id')
+          .single();
+
+        if (patientError || !patientData) {
+          toast({
+            title: "Error",
+            description: "Could not create patient record.",
+            variant: "destructive",
+          });
+          return;
+        }
+        patientId = patientData.id;
+      }
+
+      // Create the appointment
+      const { data: appointmentData, error: appointmentError } = await supabase
+        .from('appointments')
+        .insert({
+          patient_id: patientId,
+          doctor_id: doctorData.id,
+          appointment_date: formData.date,
+          appointment_time: formData.time,
+          type: formData.type,
+          notes: formData.notes,
+          status: 'scheduled'
+        })
+        .select('*')
+        .single();
+
+      if (appointmentError) {
+        toast({
+          title: "Error",
+          description: "Failed to create appointment: " + appointmentError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create appointment object for local state update
       const newAppointment = {
-        id: Date.now().toString(),
-        patientName: formData.patientName,
-        date: formData.date,
-        time: formData.time,
-        type: formData.type,
-        status: "scheduled" as const,
-        duration: parseInt(formData.duration),
-        notes: formData.notes,
+        ...appointmentData,
+        patient: {
+          user: {
+            first_name: firstName,
+            last_name: lastName
+          }
+        }
       };
 
       onAppointmentCreated(newAppointment);
@@ -92,8 +182,8 @@ export function NewAppointmentDialog({
       // Reset form
       setFormData({
         patientName: "",
-        date: "",
-        time: "",
+        date: prefilledDate,
+        time: prefilledTime,
         type: "",
         duration: "30",
         notes: "",
@@ -101,6 +191,7 @@ export function NewAppointmentDialog({
 
       onOpenChange(false);
     } catch (error) {
+      console.error('Error creating appointment:', error);
       toast({
         title: "Error",
         description: "Failed to create appointment. Please try again.",

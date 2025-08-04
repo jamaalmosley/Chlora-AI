@@ -4,57 +4,144 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, User, Plus } from "lucide-react";
 import { NewAppointmentDialog } from "@/components/Appointments/NewAppointmentDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface Appointment {
   id: string;
-  patientName: string;
-  date: string;
-  time: string;
+  appointment_date: string;
+  appointment_time: string;
   type: string;
   status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
-  duration: number;
+  notes?: string;
+  patient: {
+    user: {
+      first_name: string;
+      last_name: string;
+    };
+  } | null;
 }
 
 export default function DoctorAppointments() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [showNewAppointmentDialog, setShowNewAppointmentDialog] = useState(false);
-  const [appointments, setAppointments] = useState<Appointment[]>([
-    {
-      id: "1",
-      patientName: "John Smith",
-      date: "2024-01-16",
-      time: "09:00",
-      type: "Consultation",
-      status: "scheduled",
-      duration: 30
-    },
-    {
-      id: "2", 
-      patientName: "Sarah Johnson",
-      date: "2024-01-16",
-      time: "10:30",
-      type: "Follow-up",
-      status: "scheduled",
-      duration: 15
-    },
-    {
-      id: "3",
-      patientName: "Mike Brown",
-      date: "2024-01-16",
-      time: "14:00",
-      type: "Physical Exam",
-      status: "completed",
-      duration: 45
-    },
-    {
-      id: "4",
-      patientName: "Emily Davis",
-      date: "2024-01-17",
-      time: "11:00",
-      type: "Consultation",
-      status: "scheduled",
-      duration: 30
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [doctorData, setDoctorData] = useState<any>(null);
+
+  // Load doctor data
+  useEffect(() => {
+    const loadDoctorData = async () => {
+      if (!user) return;
+      
+      try {
+        const { data: doctor, error: doctorError } = await supabase
+          .from('doctors')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (doctorError) throw doctorError;
+        setDoctorData(doctor);
+      } catch (error) {
+        console.error('Error loading doctor data:', error);
+      }
+    };
+
+    if (user) {
+      loadDoctorData();
     }
-  ]);
+  }, [user]);
+
+  // Load appointments
+  useEffect(() => {
+    const loadAppointments = async () => {
+      if (!doctorData) return;
+      
+      setIsLoading(true);
+      
+      try {
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('doctor_id', doctorData.id)
+          .order('appointment_date', { ascending: true })
+          .order('appointment_time', { ascending: true });
+
+        if (appointmentsError) throw appointmentsError;
+
+        // Get patient data for each appointment
+        const appointmentsWithPatients: Appointment[] = await Promise.all(
+          (appointmentsData || []).map(async (apt) => {
+            if (!apt.patient_id) {
+              return {
+                id: apt.id,
+                appointment_date: apt.appointment_date,
+                appointment_time: apt.appointment_time,
+                type: apt.type,
+                status: (apt.status as 'scheduled' | 'completed' | 'cancelled' | 'no-show') || 'scheduled',
+                notes: apt.notes,
+                patient: { user: { first_name: 'Unknown', last_name: 'Patient' } }
+              };
+            }
+
+            const { data: patient } = await supabase
+              .from('patients')
+              .select('user_id')
+              .eq('id', apt.patient_id)
+              .single();
+
+            if (patient?.user_id) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('first_name, last_name')
+                .eq('id', patient.user_id)
+                .single();
+
+              return {
+                id: apt.id,
+                appointment_date: apt.appointment_date,
+                appointment_time: apt.appointment_time,
+                type: apt.type,
+                status: (apt.status as 'scheduled' | 'completed' | 'cancelled' | 'no-show') || 'scheduled',
+                notes: apt.notes,
+                patient: {
+                  user: profile || { first_name: 'Unknown', last_name: 'Patient' }
+                }
+              };
+            }
+
+            return {
+              id: apt.id,
+              appointment_date: apt.appointment_date,
+              appointment_time: apt.appointment_time,
+              type: apt.type,
+              status: (apt.status as 'scheduled' | 'completed' | 'cancelled' | 'no-show') || 'scheduled',
+              notes: apt.notes,
+              patient: { user: { first_name: 'Unknown', last_name: 'Patient' } }
+            };
+          })
+        );
+
+        setAppointments(appointmentsWithPatients);
+      } catch (error) {
+        console.error('Error loading appointments:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load appointments.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    if (doctorData) {
+      loadAppointments();
+    }
+  }, [doctorData, toast]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -67,12 +154,11 @@ export default function DoctorAppointments() {
   };
 
   const todayAppointments = appointments.filter(apt => 
-    apt.date === new Date().toISOString().split('T')[0]
+    apt.appointment_date === new Date().toISOString().split('T')[0]
   );
 
   const upcomingAppointments = appointments.filter(apt => 
-    new Date(apt.date) > new Date() || 
-    (apt.date === new Date().toISOString().split('T')[0] && apt.status === 'scheduled')
+    new Date(apt.appointment_date) >= new Date()
   );
 
   const handleNewAppointment = (newAppointment: Appointment) => {
@@ -143,36 +229,44 @@ export default function DoctorAppointments() {
           <CardTitle>Today's Schedule</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {todayAppointments.length > 0 ? (
-              todayAppointments.map((appointment) => (
-                <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="text-center">
-                      <div className="font-semibold">{appointment.time}</div>
-                      <div className="text-sm text-gray-500">{appointment.duration}m</div>
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-medical-primary"></div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {todayAppointments.length > 0 ? (
+                todayAppointments.map((appointment) => (
+                  <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <div className="text-center">
+                        <div className="font-semibold">{appointment.appointment_time}</div>
+                        <div className="text-sm text-gray-500">{appointment.type}</div>
+                      </div>
+                      <div>
+                        <div className="font-medium">
+                          {appointment.patient?.user?.first_name} {appointment.patient?.user?.last_name}
+                        </div>
+                        <div className="text-sm text-gray-500">{appointment.type}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-medium">{appointment.patientName}</div>
-                      <div className="text-sm text-gray-500">{appointment.type}</div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={getStatusColor(appointment.status)}>
+                        {appointment.status}
+                      </Badge>
+                      <Button size="sm" variant="outline">
+                        View Details
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant={getStatusColor(appointment.status)}>
-                      {appointment.status}
-                    </Badge>
-                    <Button size="sm" variant="outline">
-                      View Details
-                    </Button>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  No appointments scheduled for today
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                No appointments scheduled for today
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -182,30 +276,38 @@ export default function DoctorAppointments() {
           <CardTitle>Upcoming Appointments</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {upcomingAppointments.map((appointment) => (
-              <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <div className="font-semibold">{new Date(appointment.date).toLocaleDateString()}</div>
-                    <div className="text-sm text-gray-500">{appointment.time}</div>
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-medical-primary"></div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {upcomingAppointments.map((appointment) => (
+                <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <div className="font-semibold">{new Date(appointment.appointment_date).toLocaleDateString()}</div>
+                      <div className="text-sm text-gray-500">{appointment.appointment_time}</div>
+                    </div>
+                    <div>
+                      <div className="font-medium">
+                        {appointment.patient?.user?.first_name} {appointment.patient?.user?.last_name}
+                      </div>
+                      <div className="text-sm text-gray-500">{appointment.type}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-medium">{appointment.patientName}</div>
-                    <div className="text-sm text-gray-500">{appointment.type} • {appointment.duration}m</div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant={getStatusColor(appointment.status)}>
+                      {appointment.status}
+                    </Badge>
+                    <Button size="sm" variant="outline">
+                      Edit
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant={getStatusColor(appointment.status)}>
-                    {appointment.status}
-                  </Badge>
-                  <Button size="sm" variant="outline">
-                    Edit
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
