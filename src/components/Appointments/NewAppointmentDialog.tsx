@@ -105,15 +105,26 @@ export function NewAppointmentDialog({
           .insert({
             user_id: user.id,
             specialty: 'General Practice',
-            license_number: `TEMP-${user.id.substring(0, 8)}`
+            license_number: `TEMP-${user.id.substring(0, 8)}`,
+            status: 'active'
           })
           .select('id')
           .single();
 
-        if (createDoctorError || !newDoctorData) {
+        if (createDoctorError) {
+          console.error('Doctor creation error:', createDoctorError);
+          toast({
+            title: "Authentication Error", 
+            description: "Unable to create doctor profile. Please ensure you're logged in as a doctor.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!newDoctorData) {
           toast({
             title: "Error",
-            description: "Could not create doctor record: " + (createDoctorError?.message || 'Unknown error'),
+            description: "Failed to create doctor record.",
             variant: "destructive",
           });
           return;
