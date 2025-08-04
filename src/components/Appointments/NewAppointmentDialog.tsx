@@ -83,13 +83,15 @@ export function NewAppointmentDialog({
       }
 
       // Get or create doctor record
+      console.log('Looking for doctor record for user:', user.id);
+      
       let { data: doctorData, error: doctorError } = await supabase
         .from('doctors')
         .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
+        .eq('user_id', user.id);
 
       if (doctorError) {
+        console.error('Error querying doctors:', doctorError);
         toast({
           title: "Error",
           description: "Error fetching doctor record: " + doctorError.message,
@@ -98,8 +100,11 @@ export function NewAppointmentDialog({
         return;
       }
 
+      console.log('Doctor query result:', doctorData);
+
       // If no doctor record exists, create one
-      if (!doctorData) {
+      if (!doctorData || doctorData.length === 0) {
+        console.log('No doctor record found, creating one...');
         const { data: newDoctorData, error: createDoctorError } = await supabase
           .from('doctors')
           .insert({
@@ -114,8 +119,8 @@ export function NewAppointmentDialog({
         if (createDoctorError) {
           console.error('Doctor creation error:', createDoctorError);
           toast({
-            title: "Authentication Error", 
-            description: "Unable to create doctor profile. Please ensure you're logged in as a doctor.",
+            title: "Setup Required", 
+            description: "Please contact support to complete your doctor profile setup.",
             variant: "destructive",
           });
           return;
@@ -129,8 +134,11 @@ export function NewAppointmentDialog({
           });
           return;
         }
-        doctorData = newDoctorData;
+        doctorData = [newDoctorData];
       }
+
+      const doctorId = doctorData[0].id;
+      console.log('Using doctor ID:', doctorId);
 
       // For now, create a simple patient record for the appointment
       // In a real app, you'd want proper patient lookup/creation with user accounts
@@ -176,7 +184,7 @@ export function NewAppointmentDialog({
         .from('appointments')
         .insert({
           patient_id: patientId,
-          doctor_id: doctorData.id,
+          doctor_id: doctorId,
           appointment_date: formData.date,
           appointment_time: formData.time,
           type: formData.type,
