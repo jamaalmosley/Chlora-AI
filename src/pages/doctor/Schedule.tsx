@@ -50,7 +50,7 @@ const DoctorSchedule = () => {
           .from('doctors')
           .select('*')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (doctorError) throw doctorError;
         setDoctorData(doctor);
