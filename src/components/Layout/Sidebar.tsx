@@ -38,6 +38,11 @@ export function Sidebar() {
       icon: Calendar,
     },
     {
+      label: "Schedule",
+      path: "/doctor/schedule",
+      icon: Calendar,
+    },
+    {
       label: "Staff",
       path: "/doctor/staff",
       icon: Users,

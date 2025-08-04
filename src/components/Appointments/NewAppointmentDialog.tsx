@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,23 +24,36 @@ interface NewAppointmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAppointmentCreated: (appointment: any) => void;
+  prefilledTime?: string;
+  prefilledDate?: string;
 }
 
 export function NewAppointmentDialog({
   open,
   onOpenChange,
   onAppointmentCreated,
+  prefilledTime = "",
+  prefilledDate = "",
 }: NewAppointmentDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     patientName: "",
-    date: "",
-    time: "",
+    date: prefilledDate,
+    time: prefilledTime,
     type: "",
     duration: "30",
     notes: "",
   });
+
+  // Update form data when prefilled props change
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      date: prefilledDate,
+      time: prefilledTime,
+    }));
+  }, [prefilledDate, prefilledTime]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

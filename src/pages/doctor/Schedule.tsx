@@ -9,6 +9,7 @@ import { Clock, Calendar as CalendarIcon, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { NewAppointmentDialog } from "@/components/Appointments/NewAppointmentDialog";
 
 interface Appointment {
   id: string;
@@ -30,6 +31,8 @@ const DoctorSchedule = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [doctorData, setDoctorData] = useState<any>(null);
+  const [showNewAppointmentDialog, setShowNewAppointmentDialog] = useState(false);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("");
 
   // Define time slots for the schedule
   const timeSlots = [
@@ -152,6 +155,26 @@ const DoctorSchedule = () => {
     }
   };
 
+  const handleAddAppointment = (timeSlot: string) => {
+    setSelectedTimeSlot(timeSlot);
+    setShowNewAppointmentDialog(true);
+  };
+
+  const handleNewAppointment = (newAppointment: any) => {
+    // Convert the appointment format and add to list
+    const appointmentWithTime = {
+      ...newAppointment,
+      appointment_time: newAppointment.time,
+      patient: {
+        user: {
+          first_name: newAppointment.patientName.split(' ')[0] || '',
+          last_name: newAppointment.patientName.split(' ')[1] || ''
+        }
+      }
+    };
+    setAppointments(prev => [...prev, appointmentWithTime]);
+  };
+
   return (
     <div className="container py-6">
       <h1 className="text-3xl font-bold mb-6">My Schedule</h1>
@@ -228,7 +251,13 @@ const DoctorSchedule = () => {
                             </Button>
                           </>
                         ) : (
-                          <Button variant="outline" size="sm">Add Appointment</Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleAddAppointment(time)}
+                          >
+                            Add Appointment
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -239,6 +268,14 @@ const DoctorSchedule = () => {
           </CardContent>
         </Card>
       </div>
+
+      <NewAppointmentDialog
+        open={showNewAppointmentDialog}
+        onOpenChange={setShowNewAppointmentDialog}
+        onAppointmentCreated={handleNewAppointment}
+        prefilledTime={selectedTimeSlot}
+        prefilledDate={date ? format(date, 'yyyy-MM-dd') : ''}
+      />
     </div>
   );
 };
