@@ -82,20 +82,43 @@ export function NewAppointmentDialog({
         return;
       }
 
-      // Get doctor record
-      const { data: doctorData, error: doctorError } = await supabase
+      // Get or create doctor record
+      let { data: doctorData, error: doctorError } = await supabase
         .from('doctors')
         .select('id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (doctorError || !doctorData) {
+      if (doctorError) {
         toast({
           title: "Error",
-          description: "Could not find doctor record.",
+          description: "Error fetching doctor record: " + doctorError.message,
           variant: "destructive",
         });
         return;
+      }
+
+      // If no doctor record exists, create one
+      if (!doctorData) {
+        const { data: newDoctorData, error: createDoctorError } = await supabase
+          .from('doctors')
+          .insert({
+            user_id: user.id,
+            specialty: 'General Practice',
+            license_number: `TEMP-${user.id.substring(0, 8)}`
+          })
+          .select('id')
+          .single();
+
+        if (createDoctorError || !newDoctorData) {
+          toast({
+            title: "Error",
+            description: "Could not create doctor record: " + (createDoctorError?.message || 'Unknown error'),
+            variant: "destructive",
+          });
+          return;
+        }
+        doctorData = newDoctorData;
       }
 
       // For now, create a simple patient record for the appointment
