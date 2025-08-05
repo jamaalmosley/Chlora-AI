@@ -132,20 +132,21 @@ export function NewAppointmentDialog({
       if (existingPatients && existingPatients.length > 0) {
         patientId = existingPatients[0].id;
       } else {
-        // Create a simple patient record without user linkage for now
-        // This allows basic appointment functionality
+        // Create a patient record using the current user's ID for now
+        // This is a temporary workaround to allow appointment creation
         const { data: patientData, error: patientError } = await supabase
           .from('patients')
           .insert({
-            user_id: null // Temporary approach - in real app would require proper patient registration
+            user_id: user.id
           })
           .select('id')
           .single();
 
-        if (patientError || !patientData) {
+        if (patientError) {
+          console.error('Patient creation error:', patientError);
           toast({
             title: "Error",
-            description: "Could not create patient record.",
+            description: `Could not create patient record: ${patientError.message}`,
             variant: "destructive",
           });
           return;
