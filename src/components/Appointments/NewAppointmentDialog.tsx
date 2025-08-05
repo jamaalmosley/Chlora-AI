@@ -154,8 +154,21 @@ export function NewAppointmentDialog({
         patientId = patientData.id;
       }
 
-      // Create the appointment
-      console.log('Creating appointment with data:', {
+      // Create properly formatted datetime strings
+      const startDateTime = new Date(`${formData.date}T${formData.time}`);
+      const endDateTime = new Date(startDateTime.getTime() + parseInt(formData.duration) * 60000);
+
+      // Validate datetime
+      if (isNaN(startDateTime.getTime())) {
+        toast({
+          title: "Invalid Date",
+          description: "Please check your date and time entries.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const appointmentData = {
         patient_id: patientId,
         doctor_id: doctorId,
         appointment_date: formData.date,
@@ -163,19 +176,13 @@ export function NewAppointmentDialog({
         type: formData.type,
         notes: formData.notes,
         status: 'scheduled'
-      });
+      };
 
-      const { data: appointmentData, error: appointmentError } = await supabase
+      console.log('Creating appointment with data:', appointmentData);
+
+      const { data: newAppointment, error: appointmentError } = await supabase
         .from('appointments')
-        .insert({
-          patient_id: patientId,
-          doctor_id: doctorId,
-          appointment_date: formData.date,
-          appointment_time: formData.time,
-          type: formData.type,
-          notes: formData.notes,
-          status: 'scheduled'
-        })
+        .insert(appointmentData)
         .select('*')
         .single();
 
@@ -190,8 +197,8 @@ export function NewAppointmentDialog({
       }
 
       // Create appointment object for local state update
-      const newAppointment = {
-        ...appointmentData,
+      const appointmentForState = {
+        ...newAppointment,
         patient: {
           user: {
             first_name: firstName,
@@ -200,7 +207,7 @@ export function NewAppointmentDialog({
         }
       };
 
-      onAppointmentCreated(newAppointment);
+      onAppointmentCreated(appointmentForState);
 
       toast({
         title: "Appointment Created",
