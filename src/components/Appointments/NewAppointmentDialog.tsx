@@ -155,6 +155,16 @@ export function NewAppointmentDialog({
       }
 
       // Create the appointment
+      console.log('Creating appointment with data:', {
+        patient_id: patientId,
+        doctor_id: doctorId,
+        appointment_date: formData.date,
+        appointment_time: formData.time,
+        type: formData.type,
+        notes: formData.notes,
+        status: 'scheduled'
+      });
+
       const { data: appointmentData, error: appointmentError } = await supabase
         .from('appointments')
         .insert({
@@ -170,9 +180,10 @@ export function NewAppointmentDialog({
         .single();
 
       if (appointmentError) {
+        console.error('Appointment creation error:', appointmentError);
         toast({
           title: "Error",
-          description: "Failed to create appointment: " + appointmentError.message,
+          description: `Failed to create appointment: ${appointmentError.message}. Details: ${appointmentError.details || 'No additional details'}`,
           variant: "destructive",
         });
         return;
