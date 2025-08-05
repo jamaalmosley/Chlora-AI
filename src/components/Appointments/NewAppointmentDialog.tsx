@@ -131,27 +131,51 @@ export function NewAppointmentDialog({
 
       if (existingPatients && existingPatients.length > 0) {
         patientId = existingPatients[0].id;
+        console.log('Using existing patient:', patientId);
       } else {
-        // Create a patient record using the current user's ID for now
-        // This is a temporary workaround to allow appointment creation
-        const { data: patientData, error: patientError } = await supabase
+        // Check if current user already has a patient record
+        const { data: userPatient, error: userPatientError } = await supabase
           .from('patients')
-          .insert({
-            user_id: user.id
-          })
           .select('id')
-          .single();
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-        if (patientError) {
-          console.error('Patient creation error:', patientError);
+        if (userPatientError && userPatientError.code !== 'PGRST116') {
+          console.error('Error checking for existing patient:', userPatientError);
           toast({
             title: "Error",
-            description: `Could not create patient record: ${patientError.message}`,
+            description: `Error checking patient records: ${userPatientError.message}`,
             variant: "destructive",
           });
           return;
         }
-        patientId = patientData.id;
+
+        if (userPatient) {
+          // User already has a patient record, use it
+          patientId = userPatient.id;
+          console.log('Using existing patient record for current user:', patientId);
+        } else {
+          // Create a new patient record
+          const { data: patientData, error: patientError } = await supabase
+            .from('patients')
+            .insert({
+              user_id: user.id
+            })
+            .select('id')
+            .single();
+
+          if (patientError) {
+            console.error('Patient creation error:', patientError);
+            toast({
+              title: "Error",
+              description: `Could not create patient record: ${patientError.message}`,
+              variant: "destructive",
+            });
+            return;
+          }
+          patientId = patientData.id;
+          console.log('Created new patient record:', patientId);
+        }
       }
 
       // Create properly formatted datetime strings
