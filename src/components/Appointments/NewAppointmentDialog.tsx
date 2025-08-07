@@ -82,19 +82,43 @@ export function NewAppointmentDialog({
         return;
       }
 
-      // Get doctor record - use array query to avoid single() issues
+      // Get doctor record with retry logic and better error handling
       console.log('Looking for doctor record for user:', user.id);
       
-      const { data: doctorData, error: doctorError } = await supabase
-        .from('doctors')
-        .select('id')
-        .eq('user_id', user.id);
+      let doctorData;
+      let doctorError;
+      let retryCount = 0;
+      const maxRetries = 3;
 
-      if (doctorError) {
-        console.error('Error querying doctors:', doctorError);
+      // Retry logic to handle potential RLS timing issues
+      while (retryCount < maxRetries) {
+        const result = await supabase
+          .from('doctors')
+          .select('id, specialty, license_number')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        doctorData = result.data;
+        doctorError = result.error;
+
+        if (doctorError && doctorError.code !== 'PGRST116') {
+          console.error(`Doctor query attempt ${retryCount + 1} failed:`, doctorError);
+          retryCount++;
+          if (retryCount < maxRetries) {
+            // Wait 500ms before retry
+            await new Promise(resolve => setTimeout(resolve, 500));
+            continue;
+          }
+        } else {
+          break;
+        }
+      }
+
+      if (doctorError && doctorError.code !== 'PGRST116') {
+        console.error('Error querying doctors after retries:', doctorError);
         toast({
-          title: "Error",
-          description: "Error fetching doctor record: " + doctorError.message,
+          title: "Database Error",
+          description: `Error fetching doctor record: ${doctorError.message}. Please try again or contact support.`,
           variant: "destructive",
         });
         return;
@@ -102,17 +126,31 @@ export function NewAppointmentDialog({
 
       console.log('Doctor query result:', doctorData);
 
-      if (!doctorData || doctorData.length === 0) {
+      if (!doctorData) {
+        // Check if user has the doctor role in their profile
+        const profileRole = user.role || 'unknown';
+        console.error('No doctor record found for user with role:', profileRole);
+        
         toast({
-          title: "Profile Setup Required",
-          description: "Your doctor profile needs to be set up. Please visit your Profile page to complete setup.",
+          title: "Doctor Profile Missing",
+          description: `No doctor profile found for user ID: ${user.id}. Role: ${profileRole}. Please complete your doctor setup in Profile settings.`,
           variant: "destructive",
         });
         return;
       }
 
-      const doctorId = doctorData[0].id;
-      console.log('Using doctor ID:', doctorId);
+      // Validate doctor record has required fields
+      if (!doctorData.specialty || !doctorData.license_number) {
+        toast({
+          title: "Incomplete Doctor Profile",
+          description: "Your doctor profile is missing required information (specialty or license). Please complete your profile setup.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const doctorId = doctorData.id;
+      console.log('Using doctor ID:', doctorId, 'for doctor:', doctorData.specialty);
 
       // For now, create a simple patient record for the appointment
       // In a real app, you'd want proper patient lookup/creation with user accounts
