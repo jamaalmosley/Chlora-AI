@@ -152,68 +152,91 @@ export function NewAppointmentDialog({
       const doctorId = doctorData.id;
       console.log('Using doctor ID:', doctorId, 'for doctor:', doctorData.specialty);
 
-      // For now, create a simple patient record for the appointment
-      // In a real app, you'd want proper patient lookup/creation with user accounts
+      // Ensure the doctor is active staff to satisfy RLS for appointments insert
+      const { data: staffRecord, error: staffError } = await supabase
+        .from('staff')
+        .select('id, role, status')
+        .eq('user_id', user.id)
+        .in('role', ['doctor','physician','admin'])
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (staffError) {
+        console.error('Error verifying staff membership:', staffError);
+        toast({
+          title: 'Permission Error',
+          description: `Could not verify your staff status: ${staffError.message}`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!staffRecord) {
+        toast({
+          title: 'Not Linked to a Practice',
+          description: 'You must be an active staff member of a practice to create appointments. Ask an admin to add you to staff.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Parse patient name
       const patientNames = formData.patientName.trim().split(' ');
       const firstName = patientNames[0] || '';
       const lastName = patientNames.slice(1).join(' ') || '';
 
-      // Try to find existing patient by name (simplified approach)
-      let { data: existingPatients } = await supabase
-        .from('patients')
-        .select('id, user_id, profiles!inner(first_name, last_name)')
-        .eq('profiles.first_name', firstName)
-        .eq('profiles.last_name', lastName);
+      // Look up patient by profile name, then map to patient record
+      let patientId: string | undefined;
 
-      let patientId;
+      if (firstName && lastName) {
+        const { data: matchingProfiles, error: profileErr } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .ilike('first_name', firstName)
+          .ilike('last_name', lastName)
+          .limit(1);
 
-      if (existingPatients && existingPatients.length > 0) {
-        patientId = existingPatients[0].id;
-        console.log('Using existing patient:', patientId);
-      } else {
-        // Check if current user already has a patient record
-        const { data: userPatient, error: userPatientError } = await supabase
-          .from('patients')
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (userPatientError && userPatientError.code !== 'PGRST116') {
-          console.error('Error checking for existing patient:', userPatientError);
+        if (profileErr) {
+          console.error('Profile lookup error:', profileErr);
           toast({
-            title: "Error",
-            description: `Error checking patient records: ${userPatientError.message}`,
-            variant: "destructive",
+            title: 'Error',
+            description: `Failed to look up patient profile: ${profileErr.message}`,
+            variant: 'destructive',
           });
           return;
         }
 
-        if (userPatient) {
-          // User already has a patient record, use it
-          patientId = userPatient.id;
-          console.log('Using existing patient record for current user:', patientId);
-        } else {
-          // Create a new patient record
-          const { data: patientData, error: patientError } = await supabase
+        if (matchingProfiles && matchingProfiles.length > 0) {
+          const profileId = matchingProfiles[0].id;
+          const { data: patientRow, error: patientLookupErr } = await supabase
             .from('patients')
-            .insert({
-              user_id: user.id
-            })
             .select('id')
-            .single();
+            .eq('user_id', profileId)
+            .maybeSingle();
 
-          if (patientError) {
-            console.error('Patient creation error:', patientError);
+          if (patientLookupErr && patientLookupErr.code !== 'PGRST116') {
+            console.error('Patient lookup error:', patientLookupErr);
             toast({
-              title: "Error",
-              description: `Could not create patient record: ${patientError.message}`,
-              variant: "destructive",
+              title: 'Error',
+              description: `Failed to look up patient record: ${patientLookupErr.message}`,
+              variant: 'destructive',
             });
             return;
           }
-          patientId = patientData.id;
-          console.log('Created new patient record:', patientId);
+
+          if (patientRow) {
+            patientId = patientRow.id;
+          }
         }
+      }
+
+      if (!patientId) {
+        toast({
+          title: 'Patient Not Found',
+          description: 'No matching patient was found. Please invite the patient first and try again.',
+          variant: 'destructive',
+        });
+        return;
       }
 
       // Create properly formatted datetime strings
@@ -223,9 +246,9 @@ export function NewAppointmentDialog({
       // Validate datetime
       if (isNaN(startDateTime.getTime())) {
         toast({
-          title: "Invalid Date",
-          description: "Please check your date and time entries.",
-          variant: "destructive",
+          title: 'Invalid Date',
+          description: 'Please check your date and time entries.',
+          variant: 'destructive',
         });
         return;
       }
@@ -251,9 +274,9 @@ export function NewAppointmentDialog({
       if (appointmentError) {
         console.error('Appointment creation error:', appointmentError);
         toast({
-          title: "Error",
+          title: 'Error',
           description: `Failed to create appointment: ${appointmentError.message}. Details: ${appointmentError.details || 'No additional details'}`,
-          variant: "destructive",
+          variant: 'destructive',
         });
         return;
       }

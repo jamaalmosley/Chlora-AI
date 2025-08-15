@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "react-router-dom";
 import Navbar from "./Navbar";
 import { Sidebar } from "./Sidebar";
+import ChatLauncher from "@/components/Chat/ChatLauncher";
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -37,6 +38,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
           {children}
         </main>
       </div>
+      <ChatLauncher />
     </div>
   );
 }

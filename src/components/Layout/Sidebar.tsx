@@ -6,9 +6,10 @@ import {
   Settings,
   Building,
   User,
+  MessageSquare,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
-
+import { useAuth } from "@/context/AuthContext";
 interface NavItem {
   label: string;
   path: string;
@@ -16,6 +17,7 @@ interface NavItem {
 }
 
 export function Sidebar() {
+  const { profile } = useAuth();
   const doctorNavigationItems: NavItem[] = [
     {
       label: "Dashboard",
@@ -41,6 +43,11 @@ export function Sidebar() {
       label: "Schedule",
       path: "/doctor/schedule",
       icon: Calendar,
+    },
+    {
+      label: "Chat",
+      path: "/doctor/chat",
+      icon: MessageSquare,
     },
     {
       label: "Staff",
@@ -92,8 +99,7 @@ export function Sidebar() {
     },
   ];
 
-  // Determine user role (replace with actual logic)
-  const userRole = localStorage.getItem("userRole") || "doctor";
+  const userRole = profile?.role || "doctor";
 
   const navigationItems =
     userRole === "doctor" ? doctorNavigationItems : patientNavigationItems;

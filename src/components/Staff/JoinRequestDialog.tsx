@@ -27,9 +27,10 @@ interface JoinRequestDialogProps {
   onOpenChange: (open: boolean) => void;
   practiceId: string;
   practiceName: string;
+  presetRole?: string;
 }
 
-export function JoinRequestDialog({ open, onOpenChange, practiceId, practiceName }: JoinRequestDialogProps) {
+export function JoinRequestDialog({ open, onOpenChange, practiceId, practiceName, presetRole }: JoinRequestDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [role, setRole] = useState<string>("");
