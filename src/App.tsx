@@ -20,6 +20,7 @@ import PatientMedications from "./pages/patient/Medications";
 import PatientProfile from "./pages/patient/Profile";
 import PatientPayments from "./pages/patient/Payments";
 import AssignedPhysician from "@/pages/patient/AssignedPhysician";
+import FindPhysician from "./pages/patient/FindPhysician";
 
 // Doctor Pages
 import DoctorDashboard from "./pages/doctor/Dashboard";
@@ -162,7 +163,15 @@ const AppContent = () => {
         } 
       />
       <Route 
-        path="/patient/billing" 
+        path="/patient/find-physician" 
+        element={
+          <ProtectedRoute allowedRoles={['patient']}>
+            <FindPhysician />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/patient/billing"
         element={
           <ProtectedRoute allowedRoles={['patient']}>
             <PatientBilling />

@@ -7,6 +7,7 @@ import {
   Building,
   User,
   MessageSquare,
+  Search,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -71,6 +72,11 @@ export function Sidebar() {
       label: "Dashboard",
       path: "/patient/dashboard",
       icon: LayoutDashboard,
+    },
+    {
+      label: "Find Physician",
+      path: "/patient/find-physician",
+      icon: Search,
     },
     {
       label: "Appointments",
