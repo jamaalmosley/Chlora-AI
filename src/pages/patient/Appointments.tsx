@@ -1,14 +1,18 @@
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Clock, Check, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { BookAppointmentDialog } from "@/components/Patient/BookAppointmentDialog";
 
 export default function PatientAppointments() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
 
   const { data: patientData } = useQuery({
     queryKey: ["patient", user?.id],
@@ -106,7 +110,17 @@ export default function PatientAppointments() {
     (apt) => apt.appointment_date < today || apt.status === "completed"
   );
 
+  const handleAppointmentBooked = () => {
+    queryClient.invalidateQueries({ queryKey: ["appointments"] });
+  };
+
   return (
+    <>
+      <BookAppointmentDialog
+        open={isBookingDialogOpen}
+        onOpenChange={setIsBookingDialogOpen}
+        onAppointmentBooked={handleAppointmentBooked}
+      />
     <div className="container mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">My Appointments</h1>
@@ -116,7 +130,10 @@ export default function PatientAppointments() {
       </div>
       
       <div className="flex justify-end mb-6">
-        <Button className="bg-medical-primary hover:bg-medical-dark">
+        <Button 
+          onClick={() => setIsBookingDialogOpen(true)}
+          className="bg-medical-primary hover:bg-medical-dark"
+        >
           Schedule New Appointment
         </Button>
       </div>
@@ -144,7 +161,10 @@ export default function PatientAppointments() {
                   <p className="text-gray-500 mb-4">
                     You don't have any upcoming appointments scheduled.
                   </p>
-                  <Button className="bg-medical-primary hover:bg-medical-dark">
+                  <Button 
+                    onClick={() => setIsBookingDialogOpen(true)}
+                    className="bg-medical-primary hover:bg-medical-dark"
+                  >
                     Schedule New Appointment
                   </Button>
                 </div>
@@ -185,6 +205,7 @@ export default function PatientAppointments() {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </>
   );
 }
