@@ -1,72 +1,109 @@
-
 import { useAuth } from "@/context/AuthContext";
-import { mockPatients } from "@/data/mockData";
-import { Patient, Appointment } from "@/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Clock, Check, AlertCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
 
 export default function PatientAppointments() {
   const { user } = useAuth();
-  const patient = mockPatients.find(p => p.id === user?.id) as Patient | undefined;
 
-  if (!patient) {
+  const { data: patientData } = useQuery({
+    queryKey: ["patient", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("patients")
+        .select("id")
+        .eq("user_id", user?.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const { data: appointments = [], isLoading } = useQuery({
+    queryKey: ["appointments", patientData?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("appointments")
+        .select(`
+          *,
+          doctor:doctors(user_id, profiles:profiles(first_name, last_name)),
+          patient:patients(user_id, profiles:profiles(first_name, last_name))
+        `)
+        .eq("patient_id", patientData?.id)
+        .order("appointment_date", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!patientData?.id,
+  });
+
+  if (isLoading) {
     return (
       <div className="container mx-auto p-4">
         <h1 className="text-2xl font-bold mb-4">My Appointments</h1>
-        <p>Loading appointment data...</p>
+        <p>Loading appointments...</p>
       </div>
     );
   }
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }).format(date);
+  const renderAppointmentCard = (appointment: any) => {
+    const doctorName = appointment.doctor?.profiles
+      ? `${appointment.doctor.profiles.first_name} ${appointment.doctor.profiles.last_name}`
+      : "Doctor";
+    
+    return (
+      <div 
+        key={appointment.id} 
+        className="flex items-center p-4 rounded-lg border bg-card shadow-sm mb-3"
+      >
+        <div className={`mr-3 p-2 rounded-full ${
+          appointment.status === "scheduled" 
+            ? "bg-primary/10" 
+            : appointment.status === "completed" 
+            ? "bg-green-100" 
+            : "bg-red-100"
+        }`}>
+          {appointment.status === "scheduled" ? (
+            <Clock className="h-5 w-5 text-primary" />
+          ) : appointment.status === "completed" ? (
+            <Check className="h-5 w-5 text-green-600" />
+          ) : (
+            <AlertCircle className="h-5 w-5 text-red-600" />
+          )}
+        </div>
+        <div className="flex-1">
+          <h3 className="font-medium">
+            {appointment.type} with Dr. {doctorName}
+          </h3>
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Calendar className="h-3 w-3 mr-1" />
+            <span>
+              {format(new Date(appointment.appointment_date), "MMMM d, yyyy")} at{" "}
+              {appointment.appointment_time}
+            </span>
+          </div>
+          {appointment.notes && (
+            <p className="text-sm text-muted-foreground mt-1">{appointment.notes}</p>
+          )}
+        </div>
+        <Button size="sm" variant="outline" className="ml-2">
+          {appointment.status === "scheduled" ? "Details" : "View Summary"}
+        </Button>
+      </div>
+    );
   };
 
-  const renderAppointmentCard = (appointment: Appointment) => (
-    <div 
-      key={appointment.id} 
-      className="flex items-center p-4 rounded-lg border border-gray-200 bg-white shadow-sm mb-3"
-    >
-      <div className={`mr-3 p-2 rounded-full ${
-        appointment.status === "scheduled" 
-          ? "bg-blue-100" 
-          : appointment.status === "completed" 
-          ? "bg-green-100" 
-          : "bg-red-100"
-      }`}>
-        {appointment.status === "scheduled" ? (
-          <Clock className={`h-5 w-5 ${
-            appointment.status === "scheduled" ? "text-blue-600" : ""
-          }`} />
-        ) : appointment.status === "completed" ? (
-          <Check className="h-5 w-5 text-green-600" />
-        ) : (
-          <AlertCircle className="h-5 w-5 text-red-600" />
-        )}
-      </div>
-      <div className="flex-1">
-        <h3 className="font-medium">
-          {appointment.type} with Dr. Smith
-        </h3>
-        <div className="flex items-center text-sm text-gray-500">
-          <Calendar className="h-3 w-3 mr-1" />
-          <span>{formatDate(appointment.date)} at {appointment.time}</span>
-        </div>
-        {appointment.notes && (
-          <p className="text-sm text-gray-600 mt-1">{appointment.notes}</p>
-        )}
-      </div>
-      <Button size="sm" variant="outline" className="ml-2">
-        {appointment.status === "scheduled" ? "Details" : "View Summary"}
-      </Button>
-    </div>
+  const today = new Date().toISOString().split("T")[0];
+  const upcomingAppointments = appointments.filter(
+    (apt) => apt.appointment_date >= today && apt.status === "scheduled"
+  );
+  const pastAppointments = appointments.filter(
+    (apt) => apt.appointment_date < today || apt.status === "completed"
   );
 
   return (
@@ -92,8 +129,8 @@ export default function PatientAppointments() {
         </TabsList>
         
         <TabsContent value="upcoming" className="space-y-4">
-          {patient.upcomingAppointments && patient.upcomingAppointments.length > 0 ? (
-            patient.upcomingAppointments.map(renderAppointmentCard)
+          {upcomingAppointments.length > 0 ? (
+            upcomingAppointments.map(renderAppointmentCard)
           ) : (
             <Card>
               <CardContent className="pt-6">
@@ -117,8 +154,8 @@ export default function PatientAppointments() {
         </TabsContent>
         
         <TabsContent value="past" className="space-y-4">
-          {patient.pastAppointments && patient.pastAppointments.length > 0 ? (
-            patient.pastAppointments.map(renderAppointmentCard)
+          {pastAppointments.length > 0 ? (
+            pastAppointments.map(renderAppointmentCard)
           ) : (
             <Card>
               <CardContent className="pt-6">
@@ -133,8 +170,8 @@ export default function PatientAppointments() {
         </TabsContent>
         
         <TabsContent value="all" className="space-y-4">
-          {[...(patient.upcomingAppointments || []), ...(patient.pastAppointments || [])].length > 0 ? (
-            [...(patient.upcomingAppointments || []), ...(patient.pastAppointments || [])].map(renderAppointmentCard)
+          {appointments.length > 0 ? (
+            appointments.map(renderAppointmentCard)
           ) : (
             <Card>
               <CardContent className="pt-6">
