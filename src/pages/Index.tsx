@@ -164,9 +164,8 @@ const Index = () => {
             </Button>
             <Button 
               size="lg" 
-              variant="outline"
-              className="border-white text-white hover:bg-white/10"
-              onClick={() => window.open("https://calendly.com/demo", "_blank")}
+              className="bg-white/10 text-white border-2 border-white hover:bg-white hover:text-medical-primary transition-all"
+              onClick={() => window.location.href = 'mailto:contact@surgicalharmony.com?subject=Schedule Demo Request'}
             >
               Schedule Demo
             </Button>
