@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
@@ -110,6 +110,69 @@ export type Database = {
         }
         Relationships: []
       }
+      medical_records: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          file_urls: string[] | null
+          findings: string | null
+          id: string
+          notes: string | null
+          patient_id: string
+          released_at: string | null
+          status: string
+          test_date: string
+          test_name: string
+          test_type: Database["public"]["Enums"]["test_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_id: string
+          file_urls?: string[] | null
+          findings?: string | null
+          id?: string
+          notes?: string | null
+          patient_id: string
+          released_at?: string | null
+          status?: string
+          test_date: string
+          test_name: string
+          test_type: Database["public"]["Enums"]["test_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          file_urls?: string[] | null
+          findings?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string
+          released_at?: string | null
+          status?: string
+          test_date?: string
+          test_name?: string
+          test_type?: Database["public"]["Enums"]["test_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medical_records_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_records_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medications: {
         Row: {
           created_at: string
@@ -172,6 +235,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          link: string | null
+          message: string
+          read: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          link?: string | null
+          message: string
+          read?: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          link?: string | null
+          message?: string
+          read?: boolean | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       patient_assignments: {
         Row: {
@@ -573,27 +669,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_invitation: {
-        Args: { invitation_token: string }
-        Returns: Json
-      }
-      approve_join_request: {
-        Args: { request_id: string }
-        Returns: Json
-      }
+      accept_invitation: { Args: { invitation_token: string }; Returns: Json }
+      approve_join_request: { Args: { request_id: string }; Returns: Json }
       create_staff_record: {
         Args: {
-          p_user_id: string
+          p_department?: string
           p_practice_id: string
           p_role: string
-          p_department?: string
+          p_user_id: string
         }
         Returns: string
       }
-      get_current_user_role: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_current_user_role: { Args: never; Returns: string }
       user_can_manage_practice: {
         Args: { p_practice_id: string }
         Returns: boolean
@@ -604,7 +691,17 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      test_type:
+        | "mri"
+        | "ct_scan"
+        | "x_ray"
+        | "ekg"
+        | "ecg"
+        | "blood_test"
+        | "urine_test"
+        | "ultrasound"
+        | "biopsy"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -731,6 +828,19 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      test_type: [
+        "mri",
+        "ct_scan",
+        "x_ray",
+        "ekg",
+        "ecg",
+        "blood_test",
+        "urine_test",
+        "ultrasound",
+        "biopsy",
+        "other",
+      ],
+    },
   },
 } as const
