@@ -36,6 +36,11 @@ export function Sidebar() {
       icon: Users,
     },
     {
+      label: "Test Results",
+      path: "/doctor/test-results",
+      icon: FileText,
+    },
+    {
       label: "Appointments",
       path: "/doctor/appointments",
       icon: Calendar,
