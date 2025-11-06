@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Plus, Mail } from "lucide-react";
+import { Users, Plus, Mail, FileText } from "lucide-react";
 import { InvitePatientDialog } from "@/components/Patient/InvitePatientDialog";
+import { AddMedicalRecordDialog } from "@/components/Doctor/AddMedicalRecordDialog";
 
 interface PatientProfile {
   first_name?: string;
@@ -45,12 +46,29 @@ export default function DoctorPatients() {
   const [practiceId, setPracticeId] = useState<string | null>(null);
   const [practiceName, setPracticeName] = useState<string>("");
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [showMedicalRecordDialog, setShowMedicalRecordDialog] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<{ id: string; name: string } | null>(null);
+  const [doctorId, setDoctorId] = useState<string | null>(null);
 
   const fetchPracticeAndPatients = async () => {
     if (!user) return;
 
     try {
       setIsLoading(true);
+
+      // Get doctor ID
+      const { data: doctorData, error: doctorError } = await supabase
+        .from('doctors')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (doctorError) {
+        console.error('Error fetching doctor:', doctorError);
+        return;
+      }
+
+      setDoctorId(doctorData.id);
 
       // Get doctor's practice
       const { data: staffData, error: staffError } = await supabase
@@ -209,13 +227,27 @@ export default function DoctorPatients() {
                       </div>
                     )}
                   </div>
-                  <div className="text-right">
+                  <div className="text-right space-y-2">
                     <Badge variant="outline" className="mb-2">
                       {assignment.status}
                     </Badge>
                     <div className="text-sm text-gray-500">
                       Added: {new Date(assignment.assigned_date).toLocaleDateString()}
                     </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedPatient({
+                          id: assignment.patient_id,
+                          name: `${assignment.patients?.profiles?.first_name} ${assignment.patients?.profiles?.last_name}`
+                        });
+                        setShowMedicalRecordDialog(true);
+                      }}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Add Test Results
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -231,13 +263,31 @@ export default function DoctorPatients() {
       </Card>
 
       {practiceId && (
-        <InvitePatientDialog
-          open={showInviteDialog}
-          onOpenChange={setShowInviteDialog}
-          practiceId={practiceId}
-          practiceName={practiceName}
-          onPatientAdded={fetchPracticeAndPatients}
-        />
+        <>
+          <InvitePatientDialog
+            open={showInviteDialog}
+            onOpenChange={setShowInviteDialog}
+            practiceId={practiceId}
+            practiceName={practiceName}
+            onPatientAdded={fetchPracticeAndPatients}
+          />
+          
+          {selectedPatient && doctorId && (
+            <AddMedicalRecordDialog
+              open={showMedicalRecordDialog}
+              onOpenChange={setShowMedicalRecordDialog}
+              patientId={selectedPatient.id}
+              doctorId={doctorId}
+              onSuccess={() => {
+                toast({
+                  title: "Success",
+                  description: "Test results uploaded successfully",
+                });
+                setShowMedicalRecordDialog(false);
+              }}
+            />
+          )}
+        </>
       )}
     </div>
   );
