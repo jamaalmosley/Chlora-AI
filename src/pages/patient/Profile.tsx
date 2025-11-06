@@ -10,9 +10,7 @@ import { UserRound, Mail, Phone, MapPin, AlertCircle, Calendar, Edit } from "luc
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { EditProfileDialog } from "@/components/Patient/EditProfileDialog";
 
 interface PatientData {
   id: string;
@@ -35,11 +33,6 @@ const PatientProfile = () => {
   const [patientData, setPatientData] = useState<PatientData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editForm, setEditForm] = useState({
-    emergency_contact_name: '',
-    emergency_contact_relationship: '',
-    emergency_contact_phone: ''
-  });
 
   useEffect(() => {
     const loadPatientData = async () => {
@@ -56,11 +49,6 @@ const PatientProfile = () => {
         
         if (error) throw error;
         setPatientData(data);
-        setEditForm({
-          emergency_contact_name: data.emergency_contact_name || '',
-          emergency_contact_relationship: data.emergency_contact_relationship || '',
-          emergency_contact_phone: data.emergency_contact_phone || ''
-        });
       } catch (error) {
         console.error('Error loading patient data:', error);
       } finally {
@@ -73,45 +61,8 @@ const PatientProfile = () => {
     }
   }, [user]);
 
-  const handleEditProfile = () => {
-    setIsEditDialogOpen(true);
-  };
-
-  const handleSaveEmergencyContact = async () => {
-    if (!patientData) return;
-
-    try {
-      const { error } = await supabase
-        .from('patients')
-        .update({
-          emergency_contact_name: editForm.emergency_contact_name,
-          emergency_contact_relationship: editForm.emergency_contact_relationship,
-          emergency_contact_phone: editForm.emergency_contact_phone
-        })
-        .eq('id', patientData.id);
-
-      if (error) throw error;
-
-      setPatientData(prev => prev ? {
-        ...prev,
-        emergency_contact_name: editForm.emergency_contact_name,
-        emergency_contact_relationship: editForm.emergency_contact_relationship,
-        emergency_contact_phone: editForm.emergency_contact_phone
-      } : null);
-
-      setIsEditDialogOpen(false);
-      toast({
-        title: "Success",
-        description: "Emergency contact updated successfully.",
-      });
-    } catch (error) {
-      console.error('Error updating emergency contact:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update emergency contact.",
-        variant: "destructive",
-      });
-    }
+  const handleUpdateProfile = (updatedData: PatientData) => {
+    setPatientData(updatedData);
   };
 
   if (isLoading) {
@@ -189,7 +140,7 @@ const PatientProfile = () => {
               )}
             </div>
             
-            <Button variant="outline" className="mt-6 w-full" onClick={handleEditProfile}>
+            <Button variant="outline" className="mt-6 w-full" onClick={() => setIsEditDialogOpen(true)}>
               <Edit className="w-4 h-4 mr-2" />
               Edit Profile
             </Button>
@@ -281,59 +232,19 @@ const PatientProfile = () => {
                   <p>No emergency contact provided</p>
                 </div>
               )}
-              <Button variant="outline" size="sm" className="mt-4" onClick={() => setIsEditDialogOpen(true)}>
-                {patientData.emergency_contact_name ? 'Edit Emergency Contact' : 'Add Emergency Contact'}
-              </Button>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* Edit Emergency Contact Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Emergency Contact</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={editForm.emergency_contact_name}
-                onChange={(e) => setEditForm(prev => ({ ...prev, emergency_contact_name: e.target.value }))}
-                placeholder="Emergency contact name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="relationship">Relationship</Label>
-              <Input
-                id="relationship"
-                value={editForm.emergency_contact_relationship}
-                onChange={(e) => setEditForm(prev => ({ ...prev, emergency_contact_relationship: e.target.value }))}
-                placeholder="Relationship (e.g., Spouse, Parent)"
-              />
-            </div>
-            <div>
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                value={editForm.emergency_contact_phone}
-                onChange={(e) => setEditForm(prev => ({ ...prev, emergency_contact_phone: e.target.value }))}
-                placeholder="Phone number"
-              />
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveEmergencyContact}>
-                Save Changes
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {patientData && (
+        <EditProfileDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          patientData={patientData}
+          onUpdate={handleUpdateProfile}
+        />
+      )}
     </div>
   );
 };

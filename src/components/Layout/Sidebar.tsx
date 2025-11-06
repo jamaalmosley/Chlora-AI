@@ -79,9 +79,19 @@ export function Sidebar() {
       icon: LayoutDashboard,
     },
     {
+      label: "My Profile",
+      path: "/patient/profile",
+      icon: User,
+    },
+    {
       label: "Find Physician",
       path: "/patient/find-physician",
       icon: Search,
+    },
+    {
+      label: "Medical Records",
+      path: "/patient/records",
+      icon: FileText,
     },
     {
       label: "Appointments",
@@ -99,14 +109,14 @@ export function Sidebar() {
       icon: Users,
     },
     {
-      label: "Settings",
-      path: "/patient/settings",
-      icon: Settings,
-    },
-    {
       label: "Assigned Physician",
       path: "/patient/physician",
       icon: User,
+    },
+    {
+      label: "Settings",
+      path: "/patient/settings",
+      icon: Settings,
     },
   ];
 

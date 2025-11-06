@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Users, Plus, Mail, FileText } from "lucide-react";
 import { InvitePatientDialog } from "@/components/Patient/InvitePatientDialog";
 import { AddMedicalRecordDialog } from "@/components/Doctor/AddMedicalRecordDialog";
+import { PatientProfileDialog } from "@/components/Doctor/PatientProfileDialog";
 
 interface PatientProfile {
   first_name?: string;
@@ -47,6 +48,7 @@ export default function DoctorPatients() {
   const [practiceName, setPracticeName] = useState<string>("");
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showMedicalRecordDialog, setShowMedicalRecordDialog] = useState(false);
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<{ id: string; name: string } | null>(null);
   const [doctorId, setDoctorId] = useState<string | null>(null);
 
@@ -234,20 +236,35 @@ export default function DoctorPatients() {
                     <div className="text-sm text-gray-500">
                       Added: {new Date(assignment.assigned_date).toLocaleDateString()}
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedPatient({
-                          id: assignment.patient_id,
-                          name: `${assignment.patients?.profiles?.first_name} ${assignment.patients?.profiles?.last_name}`
-                        });
-                        setShowMedicalRecordDialog(true);
-                      }}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Add Test Results
-                    </Button>
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedPatient({
+                            id: assignment.patient_id,
+                            name: `${assignment.patients?.profiles?.first_name} ${assignment.patients?.profiles?.last_name}`
+                          });
+                          setShowProfileDialog(true);
+                        }}
+                      >
+                        View Profile
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedPatient({
+                            id: assignment.patient_id,
+                            name: `${assignment.patients?.profiles?.first_name} ${assignment.patients?.profiles?.last_name}`
+                          });
+                          setShowMedicalRecordDialog(true);
+                        }}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Add Test Results
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -273,19 +290,26 @@ export default function DoctorPatients() {
           />
           
           {selectedPatient && doctorId && (
-            <AddMedicalRecordDialog
-              open={showMedicalRecordDialog}
-              onOpenChange={setShowMedicalRecordDialog}
-              patientId={selectedPatient.id}
-              doctorId={doctorId}
-              onSuccess={() => {
-                toast({
-                  title: "Success",
-                  description: "Test results uploaded successfully",
-                });
-                setShowMedicalRecordDialog(false);
-              }}
-            />
+            <>
+              <AddMedicalRecordDialog
+                open={showMedicalRecordDialog}
+                onOpenChange={setShowMedicalRecordDialog}
+                patientId={selectedPatient.id}
+                doctorId={doctorId}
+                onSuccess={() => {
+                  toast({
+                    title: "Success",
+                    description: "Test results uploaded successfully",
+                  });
+                  setShowMedicalRecordDialog(false);
+                }}
+              />
+              <PatientProfileDialog
+                open={showProfileDialog}
+                onOpenChange={setShowProfileDialog}
+                patientId={selectedPatient.id}
+              />
+            </>
           )}
         </>
       )}
