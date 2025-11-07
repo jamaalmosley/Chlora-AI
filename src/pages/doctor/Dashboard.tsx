@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Calendar, Clock, FileText, AlertCircle } from "lucide-react";
+import { Users, Calendar, Clock, FileText, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
@@ -34,6 +34,7 @@ export default function DoctorDashboard() {
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doctorData, setDoctorData] = useState<any>(null);
+  const [availabilityStatus, setAvailabilityStatus] = useState<'active' | 'away'>('active');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function DoctorDashboard() {
         }
         
         setDoctorData(doctor);
+        setAvailabilityStatus((doctor?.availability_status || 'active') as 'active' | 'away');
 
         if (doctor) {
           // Fetch today's appointments
@@ -187,6 +189,33 @@ export default function DoctorDashboard() {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!user || !doctorData?.id) return;
+
+    // Listen for real-time status updates
+    const channel = supabase
+      .channel('doctor-availability-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'doctors',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          if (payload.new.availability_status) {
+            setAvailabilityStatus(payload.new.availability_status as 'active' | 'away');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, doctorData]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -244,12 +273,16 @@ export default function DoctorDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Status</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Availability</CardTitle>
+            <Circle className={`h-4 w-4 ${availabilityStatus === 'active' ? 'text-green-500 fill-current' : 'text-red-500 fill-current'}`} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">Active</div>
-            <p className="text-xs text-muted-foreground">{doctorData?.status || 'Active'}</p>
+            <div className={`text-2xl font-bold ${availabilityStatus === 'active' ? 'text-green-600' : 'text-red-600'}`}>
+              {availabilityStatus === 'active' ? 'Active' : 'Away'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {availabilityStatus === 'active' ? 'Available for patients' : 'Currently away'}
+            </p>
           </CardContent>
         </Card>
       </div>
