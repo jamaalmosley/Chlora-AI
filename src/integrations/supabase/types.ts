@@ -70,6 +70,7 @@ export type Database = {
       }
       doctors: {
         Row: {
+          availability_status: string | null
           certifications: string[] | null
           contact_address: string | null
           created_at: string
@@ -83,6 +84,7 @@ export type Database = {
           working_hours: string | null
         }
         Insert: {
+          availability_status?: string | null
           certifications?: string[] | null
           contact_address?: string | null
           created_at?: string
@@ -96,6 +98,7 @@ export type Database = {
           working_hours?: string | null
         }
         Update: {
+          availability_status?: string | null
           certifications?: string[] | null
           contact_address?: string | null
           created_at?: string
