@@ -31,25 +31,67 @@ export default function PatientAppointments() {
   const { data: appointments = [], isLoading, error: appointmentsError } = useQuery({
     queryKey: ["appointments", patientData?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch appointments first
+      const { data: appointmentsData, error: appointmentsError } = await supabase
         .from("appointments")
-        .select(`
-          *,
-          doctors!appointments_doctor_id_fkey(
-            id,
-            user_id,
-            specialty,
-            profiles!doctors_user_id_fkey(first_name, last_name)
-          )
-        `)
+        .select("*")
         .eq("patient_id", patientData?.id)
         .order("appointment_date", { ascending: true });
       
-      if (error) {
-        console.error("Appointments fetch error:", error);
-        throw error;
+      if (appointmentsError) {
+        console.error("Appointments fetch error:", appointmentsError);
+        throw appointmentsError;
       }
-      return data || [];
+
+      if (!appointmentsData || appointmentsData.length === 0) {
+        return [];
+      }
+
+      // Fetch doctor and profile data for each appointment
+      const appointmentsWithDoctors = await Promise.all(
+        appointmentsData.map(async (apt) => {
+          if (!apt.doctor_id) {
+            return {
+              ...apt,
+              doctors: null
+            };
+          }
+
+          // Fetch doctor data
+          const { data: doctor } = await supabase
+            .from("doctors")
+            .select("id, user_id, specialty")
+            .eq("id", apt.doctor_id)
+            .single();
+
+          if (doctor?.user_id) {
+            // Fetch profile data
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("first_name, last_name")
+              .eq("id", doctor.user_id)
+              .single();
+
+            return {
+              ...apt,
+              doctors: {
+                ...doctor,
+                profiles: profile || { first_name: "Unknown", last_name: "Doctor" }
+              }
+            };
+          }
+
+          return {
+            ...apt,
+            doctors: doctor ? {
+              ...doctor,
+              profiles: { first_name: "Unknown", last_name: "Doctor" }
+            } : null
+          };
+        })
+      );
+
+      return appointmentsWithDoctors;
     },
     enabled: !!patientData?.id,
   });
