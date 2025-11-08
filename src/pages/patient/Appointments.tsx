@@ -28,20 +28,28 @@ export default function PatientAppointments() {
     enabled: !!user?.id,
   });
 
-  const { data: appointments = [], isLoading } = useQuery({
+  const { data: appointments = [], isLoading, error: appointmentsError } = useQuery({
     queryKey: ["appointments", patientData?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("appointments")
         .select(`
           *,
-          doctor:doctors(user_id, profiles:profiles(first_name, last_name)),
-          patient:patients(user_id, profiles:profiles(first_name, last_name))
+          doctors!doctor_id(
+            id,
+            user_id,
+            specialty,
+            profiles:user_id(first_name, last_name)
+          )
         `)
         .eq("patient_id", patientData?.id)
         .order("appointment_date", { ascending: true });
-      if (error) throw error;
-      return data;
+      
+      if (error) {
+        console.error("Appointments fetch error:", error);
+        throw error;
+      }
+      return data || [];
     },
     enabled: !!patientData?.id,
   });
@@ -55,9 +63,27 @@ export default function PatientAppointments() {
     );
   }
 
+  if (appointmentsError) {
+    return (
+      <div className="container mx-auto p-4">
+        <h1 className="text-2xl font-bold mb-4">My Appointments</h1>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-6">
+              <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                Unable to load appointments. Please try again later.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const renderAppointmentCard = (appointment: any) => {
-    const doctorName = appointment.doctor?.profiles
-      ? `${appointment.doctor.profiles.first_name} ${appointment.doctor.profiles.last_name}`
+    const doctorName = appointment.doctors?.profiles
+      ? `${appointment.doctors.profiles.first_name} ${appointment.doctors.profiles.last_name}`
       : "Doctor";
     
     return (
