@@ -35,11 +35,11 @@ export default function PatientAppointments() {
         .from("appointments")
         .select(`
           *,
-          doctors!doctor_id(
+          doctors!appointments_doctor_id_fkey(
             id,
             user_id,
             specialty,
-            profiles:user_id(first_name, last_name)
+            profiles!doctors_user_id_fkey(first_name, last_name)
           )
         `)
         .eq("patient_id", patientData?.id)
