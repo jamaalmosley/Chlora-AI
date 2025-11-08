@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Activity, AlertCircle, Download, Eye } from "lucide-react";
+import { FileText, Activity, AlertCircle, Download, Eye, Pill, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { EditProfileDialog } from "@/components/Patient/EditProfileDialog";
 
 interface MedicalRecord {
   id: string;
@@ -21,11 +22,25 @@ interface MedicalRecord {
   doctor_name: string;
 }
 
+interface Medication {
+  id: string;
+  name: string;
+  dosage: string;
+  frequency: string;
+  start_date: string;
+  end_date: string | null;
+  status: string;
+  instructions: string | null;
+  doctor_name: string;
+}
+
 export default function PatientRecords() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
+  const [medications, setMedications] = useState<Medication[]>([]);
   const [patientData, setPatientData] = useState<any>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -70,6 +85,31 @@ export default function PatientRecords() {
       })) || [];
 
       setMedicalRecords(formattedRecords);
+
+      // Get medications with doctor info
+      const { data: meds, error: medsError } = await supabase
+        .from("medications")
+        .select(`
+          *,
+          doctors:prescribed_by (
+            user_id,
+            profiles:user_id (
+              first_name,
+              last_name
+            )
+          )
+        `)
+        .eq("patient_id", patientData.id)
+        .order("start_date", { ascending: false });
+
+      if (medsError) throw medsError;
+
+      const formattedMeds = meds?.map((med: any) => ({
+        ...med,
+        doctor_name: `Dr. ${med.doctors.profiles.first_name} ${med.doctors.profiles.last_name}`,
+      })) || [];
+
+      setMedications(formattedMeds);
     } catch (error: any) {
       console.error("Error fetching records:", error);
       toast.error("Failed to load medical records");
@@ -132,8 +172,7 @@ export default function PatientRecords() {
       <Tabs defaultValue="records" className="w-full">
         <TabsList>
           <TabsTrigger value="records">Test Results</TabsTrigger>
-          <TabsTrigger value="history">Medical History</TabsTrigger>
-          <TabsTrigger value="allergies">Allergies</TabsTrigger>
+          <TabsTrigger value="health">Health Profile</TabsTrigger>
         </TabsList>
 
         <TabsContent value="records" className="space-y-4 mt-6">
@@ -231,60 +270,158 @@ export default function PatientRecords() {
           )}
         </TabsContent>
 
-        <TabsContent value="history" className="space-y-4 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Medical History</CardTitle>
-              <CardDescription>
-                Your documented medical history
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {patientData?.medical_history && patientData.medical_history.length > 0 ? (
-                <ul className="space-y-2">
-                  {patientData.medical_history.map((item: string, index: number) => (
-                    <li key={index} className="flex items-start gap-2 p-3 border rounded-lg">
-                      <Activity className="h-5 w-5 text-primary mt-0.5" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted-foreground text-center p-4">
-                  No medical history recorded
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        <TabsContent value="health" className="space-y-4 mt-6">
+          <div className="flex justify-end mb-4">
+            <Button onClick={() => setEditDialogOpen(true)} variant="outline">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Health Profile
+            </Button>
+          </div>
 
-        <TabsContent value="allergies" className="space-y-4 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Allergies</CardTitle>
-              <CardDescription>
-                Known allergies and reactions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {patientData?.allergies && patientData.allergies.length > 0 ? (
-                <ul className="space-y-2">
-                  {patientData.allergies.map((allergy: string, index: number) => (
-                    <li key={index} className="flex items-start gap-2 p-3 border rounded-lg bg-destructive/5">
-                      <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
-                      <span className="font-medium">{allergy}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted-foreground text-center p-4">
-                  No allergies recorded
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Current Medications */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Pill className="h-5 w-5 text-primary" />
+                  Current Medications
+                </CardTitle>
+                <CardDescription>
+                  Active prescriptions from your physicians
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {medications.filter(m => m.status === 'active').length > 0 ? (
+                  <div className="space-y-3">
+                    {medications.filter(m => m.status === 'active').map((med) => (
+                      <div key={med.id} className="p-3 border rounded-lg space-y-1">
+                        <div className="font-semibold">{med.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {med.dosage} • {med.frequency}
+                        </div>
+                        {med.instructions && (
+                          <div className="text-xs text-muted-foreground">{med.instructions}</div>
+                        )}
+                        <div className="text-xs text-muted-foreground pt-1">
+                          Prescribed by {med.doctor_name}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">
+                    No current medications
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Past Medications */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Pill className="h-5 w-5 text-muted-foreground" />
+                  Past Medications
+                </CardTitle>
+                <CardDescription>
+                  Previously prescribed medications
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {medications.filter(m => m.status === 'inactive' || m.end_date).length > 0 ? (
+                  <div className="space-y-3">
+                    {medications.filter(m => m.status === 'inactive' || m.end_date).map((med) => (
+                      <div key={med.id} className="p-3 border rounded-lg space-y-1 opacity-60">
+                        <div className="font-semibold">{med.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {med.dosage} • {med.frequency}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatDate(med.start_date)} - {med.end_date ? formatDate(med.end_date) : 'Ongoing'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">
+                    No past medications
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Medical History */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-primary" />
+                  Medical History
+                </CardTitle>
+                <CardDescription>
+                  Chronic conditions, past surgeries, and procedures
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {patientData?.medical_history && patientData.medical_history.length > 0 ? (
+                  <ul className="space-y-2">
+                    {patientData.medical_history.map((item: string, index: number) => (
+                      <li key={index} className="flex items-start gap-2 p-3 border rounded-lg">
+                        <Activity className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                        <span className="text-sm">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">
+                    No medical history recorded
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Allergies */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                  Allergies & Reactions
+                </CardTitle>
+                <CardDescription>
+                  Known allergies to medications, foods, or substances
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {patientData?.allergies && patientData.allergies.length > 0 ? (
+                  <ul className="space-y-2">
+                    {patientData.allergies.map((allergy: string, index: number) => (
+                      <li key={index} className="flex items-start gap-2 p-3 border rounded-lg bg-destructive/5">
+                        <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                        <span className="font-medium text-sm">{allergy}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">
+                    No allergies recorded
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
+
+      {patientData && (
+        <EditProfileDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          patientData={patientData}
+          onUpdate={(updatedData) => {
+            setPatientData(updatedData);
+            toast.success("Health profile updated successfully");
+          }}
+        />
+      )}
     </div>
   );
 }
