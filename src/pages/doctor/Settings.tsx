@@ -14,6 +14,7 @@ export default function DoctorSettings() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const [specialty, setSpecialty] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const fetchDoctorData = async () => {
@@ -22,7 +23,7 @@ export default function DoctorSettings() {
         .from("doctors")
         .select("specialty")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       if (data) {
         setSpecialty(data.specialty || "");
       }
@@ -48,12 +49,31 @@ export default function DoctorSettings() {
     }
   });
 
-  const handleSaveSettings = () => {
-    // Here you would save to database
-    toast({
-      title: "Settings Saved",
-      description: "Your preferences have been updated successfully.",
-    });
+  const handleSaveSettings = async () => {
+    if (!user?.id) return;
+    setIsSaving(true);
+    
+    try {
+      const { error } = await supabase
+        .from("doctors")
+        .update({ specialty })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Settings Saved",
+        description: "Your preferences have been updated successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -275,9 +295,10 @@ export default function DoctorSettings() {
       <div className="flex justify-end">
         <Button 
           onClick={handleSaveSettings}
+          disabled={isSaving}
           className="bg-medical-primary hover:bg-medical-dark"
         >
-          Save Settings
+          {isSaving ? "Saving..." : "Save Settings"}
         </Button>
       </div>
     </div>
