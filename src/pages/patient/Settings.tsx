@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Settings, Bell, Shield, User, Heart } from "lucide-react";
 
 export default function PatientSettings() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
+  const [patientData, setPatientData] = useState<any>(null);
   
   const [settings, setSettings] = useState({
     notifications: {
@@ -25,11 +27,37 @@ export default function PatientSettings() {
       allowMarketing: false
     },
     emergency: {
-      contactName: "Jane Doe",
-      contactPhone: "+1 (555) 987-6543",
-      relationship: "Spouse"
+      contactName: "",
+      contactPhone: "",
+      relationship: ""
     }
   });
+
+  useEffect(() => {
+    const fetchPatientData = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (data) {
+        setPatientData(data);
+        setSettings(prev => ({
+          ...prev,
+          emergency: {
+            contactName: data.emergency_contact_name || "",
+            contactPhone: data.emergency_contact_phone || "",
+            relationship: data.emergency_contact_relationship || ""
+          }
+        }));
+      }
+    };
+    
+    fetchPatientData();
+  }, [user]);
 
   const handleSaveSettings = () => {
     toast({
@@ -57,11 +85,11 @@ export default function PatientSettings() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" defaultValue="John" />
+              <Input id="firstName" defaultValue={profile?.first_name || ""} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" defaultValue="Smith" />
+              <Input id="lastName" defaultValue={profile?.last_name || ""} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -69,15 +97,15 @@ export default function PatientSettings() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" defaultValue="+1 (555) 123-4567" />
+              <Input id="phone" defaultValue={profile?.phone || ""} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="dateOfBirth">Date of Birth</Label>
-              <Input id="dateOfBirth" type="date" defaultValue="1985-06-15" />
+              <Input id="dateOfBirth" type="date" defaultValue={patientData?.date_of_birth || ""} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Address</Label>
-              <Input id="address" defaultValue="123 Main St, City, State 12345" />
+              <Input id="address" defaultValue={patientData?.address || ""} />
             </div>
           </CardContent>
         </Card>
