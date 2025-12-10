@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Settings, Bell, Shield, User } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function DoctorSettings() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  const [specialty, setSpecialty] = useState("");
+
+  useEffect(() => {
+    const fetchDoctorData = async () => {
+      if (!user?.id) return;
+      const { data } = await supabase
+        .from("doctors")
+        .select("specialty")
+        .eq("user_id", user.id)
+        .single();
+      if (data) {
+        setSpecialty(data.specialty || "");
+      }
+    };
+    fetchDoctorData();
+  }, [user?.id]);
   
   const [settings, setSettings] = useState({
     notifications: {
@@ -71,6 +88,15 @@ export default function DoctorSettings() {
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
               <Input id="phone" defaultValue={profile?.phone || ""} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="specialty">Specialty</Label>
+              <Input 
+                id="specialty" 
+                value={specialty}
+                onChange={(e) => setSpecialty(e.target.value)}
+                placeholder="e.g., Cardiology, General Practice"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="bio">Bio</Label>
