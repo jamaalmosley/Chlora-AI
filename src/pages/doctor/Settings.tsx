@@ -144,7 +144,7 @@ export default function DoctorSettings() {
               disabled={isSaving}
               className="w-full bg-medical-primary hover:bg-medical-dark mt-4"
             >
-              {isSaving ? "Saving..." : "Save Profile"}
+              {isSaving ? "Updating..." : "Update Profile"}
             </Button>
           </CardContent>
         </Card>
