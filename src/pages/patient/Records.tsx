@@ -81,7 +81,7 @@ export default function PatientRecords() {
 
       const formattedRecords = records?.map((record: any) => ({
         ...record,
-        doctor_name: `Dr. ${record.doctors.profiles.first_name} ${record.doctors.profiles.last_name}`,
+        doctor_name: `Dr. ${record.doctors.profiles.last_name}`,
       })) || [];
 
       setMedicalRecords(formattedRecords);
@@ -106,7 +106,7 @@ export default function PatientRecords() {
 
       const formattedMeds = meds?.map((med: any) => ({
         ...med,
-        doctor_name: `Dr. ${med.doctors.profiles.first_name} ${med.doctors.profiles.last_name}`,
+        doctor_name: `Dr. ${med.doctors.profiles.last_name}`,
       })) || [];
 
       setMedications(formattedMeds);

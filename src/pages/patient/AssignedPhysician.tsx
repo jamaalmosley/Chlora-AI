@@ -203,7 +203,7 @@ export default function AssignedPhysician() {
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="font-medium">
-                        Dr. {request.profiles?.first_name} {request.profiles?.last_name}
+                        Dr. {request.profiles?.last_name}
                       </div>
                       <div className="text-sm text-gray-600">
                         {request.practices?.name}
