@@ -124,9 +124,7 @@ export default function PatientAppointments() {
   }
 
   const renderAppointmentCard = (appointment: any) => {
-    const doctorName = appointment.doctors?.profiles
-      ? `${appointment.doctors.profiles.first_name} ${appointment.doctors.profiles.last_name}`
-      : "Doctor";
+    const doctorName = appointment.doctors?.profiles?.last_name || "Doctor";
     
     return (
       <div 
