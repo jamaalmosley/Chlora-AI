@@ -224,7 +224,7 @@ export default function DoctorDashboard() {
     );
   }
 
-  const userName = profile?.first_name || "Doctor";
+  const userName = profile?.last_name || "Doctor";
 
   return (
     <div className="container mx-auto py-6">
