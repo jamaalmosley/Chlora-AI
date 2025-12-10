@@ -50,25 +50,39 @@ export default function DoctorSettings() {
   });
 
   const handleSaveSettings = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to save settings.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsSaving(true);
     
     try {
-      const { error } = await supabase
+      console.log("Saving specialty:", specialty, "for user:", user.id);
+      
+      const { data, error } = await supabase
         .from("doctors")
         .update({ specialty })
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .select();
+
+      console.log("Save result:", { data, error });
 
       if (error) throw error;
 
       toast({
         title: "Settings Saved",
-        description: "Your preferences have been updated successfully.",
+        description: "Your specialty has been updated successfully.",
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Save error:", error);
       toast({
         title: "Error",
-        description: "Failed to save settings. Please try again.",
+        description: error.message || "Failed to save settings. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -125,6 +139,13 @@ export default function DoctorSettings() {
                 placeholder="Tell patients about yourself..."
               />
             </div>
+            <Button 
+              onClick={handleSaveSettings}
+              disabled={isSaving}
+              className="w-full bg-medical-primary hover:bg-medical-dark mt-4"
+            >
+              {isSaving ? "Saving..." : "Save Profile"}
+            </Button>
           </CardContent>
         </Card>
 
