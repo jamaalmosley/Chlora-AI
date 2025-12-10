@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Settings, Bell, Shield, User } from "lucide-react";
 
 export default function DoctorSettings() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   
   const [settings, setSettings] = useState({
@@ -58,11 +58,11 @@ export default function DoctorSettings() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" defaultValue="Dr. John" />
+              <Input id="firstName" defaultValue={profile?.first_name || ""} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" defaultValue="Doe" />
+              <Input id="lastName" defaultValue={profile?.last_name || ""} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -70,14 +70,13 @@ export default function DoctorSettings() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" defaultValue="+1 (555) 123-4567" />
+              <Input id="phone" defaultValue={profile?.phone || ""} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="bio">Bio</Label>
               <Textarea 
                 id="bio" 
                 placeholder="Tell patients about yourself..."
-                defaultValue="Experienced family physician with over 10 years of practice."
               />
             </div>
           </CardContent>
