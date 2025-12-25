@@ -13,9 +13,11 @@ import {
 import { LogOut, Settings, User } from "lucide-react";
 import { NotificationBell } from "@/components/Navbar/NotificationBell";
 import { StatusToggle } from "@/components/Doctor/StatusToggle";
+import { useNavigate } from "react-router-dom";
 
 export default function Navbar() {
   const { user, profile, signOut, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     try {
@@ -62,11 +64,11 @@ export default function Navbar() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/${userRole}/profile`)}>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/${userRole}/settings`)}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>
