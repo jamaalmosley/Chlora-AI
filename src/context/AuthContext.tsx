@@ -26,6 +26,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   error: string | null;
   refreshPracticeStatus: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -109,6 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null);
       throw err;
     }
+  };
+
+  const refreshProfile = async () => {
+    if (!user?.id) return;
+    await fetchProfile(user.id);
   };
 
   useEffect(() => {
@@ -300,6 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
     error,
     refreshPracticeStatus,
+    refreshProfile,
   };
 
   return (

@@ -11,10 +11,15 @@ import { Settings, Bell, Shield, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function DoctorSettings() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [specialty, setSpecialty] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    first_name: "",
+    last_name: "",
+    phone: "",
+  });
 
   useEffect(() => {
     const fetchDoctorData = async () => {
@@ -30,7 +35,15 @@ export default function DoctorSettings() {
     };
     fetchDoctorData();
   }, [user?.id]);
-  
+
+  useEffect(() => {
+    setProfileForm({
+      first_name: profile?.first_name || "",
+      last_name: profile?.last_name || "",
+      phone: profile?.phone || "",
+    });
+  }, [profile?.first_name, profile?.last_name, profile?.phone]);
+
   const [settings, setSettings] = useState({
     notifications: {
       email: true,
@@ -53,36 +66,61 @@ export default function DoctorSettings() {
     if (!user?.id) {
       toast({
         title: "Error",
-        description: "You must be logged in to save settings.",
+        description: "You must be logged in to update your profile.",
         variant: "destructive",
       });
       return;
     }
-    
+
     setIsSaving(true);
-    
+
     try {
-      console.log("Saving specialty:", specialty, "for user:", user.id);
-      
-      const { data, error } = await supabase
-        .from("doctors")
-        .update({ specialty })
-        .eq("user_id", user.id)
-        .select();
+      console.log("Updating profile for user:", user.id, {
+        first_name: profileForm.first_name,
+        last_name: profileForm.last_name,
+        phone: profileForm.phone,
+        specialty,
+      });
 
-      console.log("Save result:", { data, error });
+      const [profileResult, doctorResult] = await Promise.all([
+        supabase
+          .from("profiles")
+          .update({
+            first_name: profileForm.first_name,
+            last_name: profileForm.last_name,
+            phone: profileForm.phone.trim() ? profileForm.phone.trim() : null,
+          })
+          .eq("id", user.id)
+          .select()
+          .maybeSingle(),
+        supabase
+          .from("doctors")
+          .update({ specialty })
+          .eq("user_id", user.id)
+          .select()
+          .maybeSingle(),
+      ]);
 
-      if (error) throw error;
+      console.log("Update results:", {
+        profile: { data: profileResult.data, error: profileResult.error },
+        doctor: { data: doctorResult.data, error: doctorResult.error },
+      });
+
+      if (profileResult.error) throw profileResult.error;
+      if (doctorResult.error) throw doctorResult.error;
+
+      // Refresh AuthContext profile so Navbar / Profile page reflect the changes.
+      await refreshProfile();
 
       toast({
-        title: "Settings Saved",
-        description: "Your specialty has been updated successfully.",
+        title: "Profile Updated",
+        description: "Your profile changes have been saved.",
       });
     } catch (error: any) {
-      console.error("Save error:", error);
+      console.error("Profile update error:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to save settings. Please try again.",
+        description: error?.message || "Failed to update profile. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -109,19 +147,37 @@ export default function DoctorSettings() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" defaultValue={profile?.first_name || ""} />
+              <Input
+                id="firstName"
+                value={profileForm.first_name}
+                onChange={(e) =>
+                  setProfileForm((prev) => ({ ...prev, first_name: e.target.value }))
+                }
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" defaultValue={profile?.last_name || ""} />
+              <Input
+                id="lastName"
+                value={profileForm.last_name}
+                onChange={(e) =>
+                  setProfileForm((prev) => ({ ...prev, last_name: e.target.value }))
+                }
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" defaultValue={user?.email || ""} />
+              <Input id="email" type="email" value={user?.email || ""} disabled />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" defaultValue={profile?.phone || ""} />
+              <Input
+                id="phone"
+                value={profileForm.phone}
+                onChange={(e) =>
+                  setProfileForm((prev) => ({ ...prev, phone: e.target.value }))
+                }
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="specialty">Specialty</Label>
