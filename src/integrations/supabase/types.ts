@@ -68,6 +68,85 @@ export type Database = {
           },
         ]
       }
+      checklist_item_completions: {
+        Row: {
+          checklist_id: string
+          completed_at: string | null
+          completed_by: string | null
+          completed_by_role: string | null
+          id: string
+          item_index: number
+          notes: string | null
+        }
+        Insert: {
+          checklist_id: string
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_role?: string | null
+          id?: string
+          item_index: number
+          notes?: string | null
+        }
+        Update: {
+          checklist_id?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_role?: string | null
+          id?: string
+          item_index?: number
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_item_completions_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "surgery_checklists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_templates: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          items: Json
+          name: string
+          practice_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          items?: Json
+          name: string
+          practice_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          items?: Json
+          name?: string
+          practice_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_templates_practice_id_fkey"
+            columns: ["practice_id"]
+            isOneToOne: false
+            referencedRelation: "practices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctors: {
         Row: {
           availability_status: string | null
@@ -631,6 +710,44 @@ export type Database = {
         }
         Relationships: []
       }
+      preop_images: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          file_name: string
+          file_path: string
+          id: string
+          surgery_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          surgery_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          surgery_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preop_images_surgery_id_fkey"
+            columns: ["surgery_id"]
+            isOneToOne: false
+            referencedRelation: "surgeries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -707,6 +824,105 @@ export type Database = {
             columns: ["practice_id"]
             isOneToOne: false
             referencedRelation: "practices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      surgeries: {
+        Row: {
+          created_at: string | null
+          doctor_id: string
+          id: string
+          location: string | null
+          notes: string | null
+          patient_id: string
+          procedure_name: string
+          status: string
+          surgery_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          doctor_id: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          patient_id: string
+          procedure_name: string
+          status?: string
+          surgery_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          doctor_id?: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          patient_id?: string
+          procedure_name?: string
+          status?: string
+          surgery_date?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surgeries_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surgeries_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      surgery_checklists: {
+        Row: {
+          created_at: string | null
+          id: string
+          items: Json
+          name: string
+          surgery_id: string
+          template_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          items?: Json
+          name: string
+          surgery_id: string
+          template_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          items?: Json
+          name?: string
+          surgery_id?: string
+          template_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surgery_checklists_surgery_id_fkey"
+            columns: ["surgery_id"]
+            isOneToOne: false
+            referencedRelation: "surgeries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surgery_checklists_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
             referencedColumns: ["id"]
           },
         ]
