@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { appointmentSchema, validateInput } from "@/lib/validations";
 
 interface NewAppointmentDialogProps {
   open: boolean;
@@ -60,27 +61,31 @@ export function NewAppointmentDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate input using Zod schema
+    const validationResult = validateInput(appointmentSchema, formData);
+
+    if (!validationResult.success) {
+      toast({
+        title: "Invalid Input",
+        description: validationResult.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to create appointments.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // Validate required fields
-      if (!formData.patientName || !formData.date || !formData.time || !formData.type) {
-        toast({
-          title: "Missing Information",
-          description: "Please fill in all required fields.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!user) {
-        toast({
-          title: "Authentication Error",
-          description: "You must be logged in to create appointments.",
-          variant: "destructive",
-        });
-        return;
-      }
 
       // Get doctor record with retry logic and better error handling
       console.log('Looking for doctor record for user:', user.id);

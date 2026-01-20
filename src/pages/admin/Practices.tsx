@@ -9,6 +9,7 @@ import { Search, Building, Users, Plus, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { practiceSchema, validateInput } from "@/lib/validations";
 
 interface Practice {
   id: string;
@@ -93,16 +94,33 @@ export default function AdminPractices() {
   }, [searchTerm, practices]);
 
   const createPractice = async () => {
-    if (!newPracticeName.trim()) return;
+    // Validate input using Zod schema
+    const validationResult = validateInput(practiceSchema, {
+      name: newPracticeName,
+      address: newPracticeAddress || null,
+      phone: newPracticePhone || null,
+      email: newPracticeEmail || null,
+    });
+
+    if (!validationResult.success) {
+      toast({
+        title: "Invalid Input",
+        description: validationResult.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const validatedData = validationResult.data;
 
     try {
       const { error } = await supabase
         .from('practices')
         .insert({
-          name: newPracticeName,
-          address: newPracticeAddress || null,
-          phone: newPracticePhone || null,
-          email: newPracticeEmail || null
+          name: validatedData.name,
+          address: validatedData.address,
+          phone: validatedData.phone,
+          email: validatedData.email,
         });
 
       if (error) throw error;
