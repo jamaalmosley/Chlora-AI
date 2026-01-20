@@ -103,7 +103,6 @@ const AdminReports = () => {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="patients">Patients</TabsTrigger>
           <TabsTrigger value="doctors">Doctors</TabsTrigger>
-          <TabsTrigger value="financials">Financials</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-6">
@@ -313,19 +312,6 @@ const AdminReports = () => {
           </Card>
         </TabsContent>
         
-        <TabsContent value="financials">
-          <Card>
-            <CardHeader>
-              <CardTitle>Financial Reports</CardTitle>
-              <CardDescription>Financial reports and analytics will be displayed here</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-500 py-10 text-center">
-                Financial analytics module is under development. Check back soon for detailed reports.
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );

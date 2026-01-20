@@ -61,8 +61,8 @@ export function Sidebar() {
       icon: Users,
     },
     {
-      label: "Billing",
-      path: "/doctor/billing",
+      label: "Surgeries",
+      path: "/doctor/surgeries",
       icon: FileText,
     },
     {
@@ -97,11 +97,6 @@ export function Sidebar() {
       label: "Appointments",
       path: "/patient/appointments",
       icon: Calendar,
-    },
-    {
-      label: "Billing",
-      path: "/patient/billing",
-      icon: FileText,
     },
     {
       label: "Chat",

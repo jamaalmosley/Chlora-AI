@@ -11,7 +11,6 @@ interface Physician {
   rating: number;
   distance: string;
   availability: string;
-  insuranceAccepted: boolean;
   matchScore: number;
   practiceName: string;
   practiceAddress: string;
@@ -121,14 +120,6 @@ export default function PhysicianRecommendations({ physicians, onBookConsultatio
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Next Available</span>
                     <span className="text-sm text-muted-foreground">{physician.availability}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Insurance</span>
-                    {physician.insuranceAccepted ? (
-                      <Badge variant="outline" className="text-green-600 border-green-600">Accepted</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-red-600 border-red-600">Not Accepted</Badge>
-                    )}
                   </div>
                 </div>
 
