@@ -14,8 +14,6 @@ interface PatientData {
   id: string;
   date_of_birth: string | null;
   address: string | null;
-  insurance_provider: string | null;
-  insurance_number: string | null;
   emergency_contact_name: string | null;
   emergency_contact_relationship: string | null;
   emergency_contact_phone: string | null;
@@ -37,8 +35,6 @@ export function EditProfileDialog({ open, onOpenChange, patientData, onUpdate }:
   const [formData, setFormData] = useState({
     date_of_birth: patientData.date_of_birth || "",
     address: patientData.address || "",
-    insurance_provider: patientData.insurance_provider || "",
-    insurance_number: patientData.insurance_number || "",
     emergency_contact_name: patientData.emergency_contact_name || "",
     emergency_contact_relationship: patientData.emergency_contact_relationship || "",
     emergency_contact_phone: patientData.emergency_contact_phone || "",
@@ -76,8 +72,6 @@ export function EditProfileDialog({ open, onOpenChange, patientData, onUpdate }:
     const updateData = {
       date_of_birth: formData.date_of_birth || undefined,
       address: formData.address || undefined,
-      insurance_provider: formData.insurance_provider || undefined,
-      insurance_number: formData.insurance_number || undefined,
       emergency_contact_name: formData.emergency_contact_name || undefined,
       emergency_contact_relationship: formData.emergency_contact_relationship || undefined,
       emergency_contact_phone: formData.emergency_contact_phone || undefined,
@@ -105,8 +99,6 @@ export function EditProfileDialog({ open, onOpenChange, patientData, onUpdate }:
         .update({
           date_of_birth: validatedData.date_of_birth || null,
           address: validatedData.address || null,
-          insurance_provider: validatedData.insurance_provider || null,
-          insurance_number: validatedData.insurance_number || null,
           emergency_contact_name: validatedData.emergency_contact_name || null,
           emergency_contact_relationship: validatedData.emergency_contact_relationship || null,
           emergency_contact_phone: validatedData.emergency_contact_phone || null,
@@ -144,9 +136,8 @@ export function EditProfileDialog({ open, onOpenChange, patientData, onUpdate }:
         </DialogHeader>
 
         <Tabs defaultValue="personal" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="personal">Personal</TabsTrigger>
-            <TabsTrigger value="insurance">Insurance</TabsTrigger>
             <TabsTrigger value="medical">Medical</TabsTrigger>
             <TabsTrigger value="emergency">Emergency</TabsTrigger>
           </TabsList>
@@ -168,27 +159,6 @@ export function EditProfileDialog({ open, onOpenChange, patientData, onUpdate }:
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 placeholder="Your full address"
-              />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="insurance" className="space-y-4">
-            <div>
-              <Label htmlFor="provider">Insurance Provider</Label>
-              <Input
-                id="provider"
-                value={formData.insurance_provider}
-                onChange={(e) => setFormData({ ...formData, insurance_provider: e.target.value })}
-                placeholder="e.g., Blue Cross Blue Shield"
-              />
-            </div>
-            <div>
-              <Label htmlFor="policy">Policy Number</Label>
-              <Input
-                id="policy"
-                value={formData.insurance_number}
-                onChange={(e) => setFormData({ ...formData, insurance_number: e.target.value })}
-                placeholder="Your policy/member number"
               />
             </div>
           </TabsContent>

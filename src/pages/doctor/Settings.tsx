@@ -49,7 +49,7 @@ export default function DoctorSettings() {
       email: true,
       sms: false,
       appointments: true,
-      billing: true
+      surgeries: true
     },
     privacy: {
       profileVisible: true,
@@ -267,16 +267,16 @@ export default function DoctorSettings() {
             
             <div className="flex items-center justify-between">
               <div>
-                <Label htmlFor="billing-notifications">Billing Alerts</Label>
-                <p className="text-sm text-gray-500">Get notified about payment updates</p>
+                <Label htmlFor="surgery-notifications">Surgery Alerts</Label>
+                <p className="text-sm text-gray-500">Get notified about surgery updates</p>
               </div>
               <Switch 
-                id="billing-notifications" 
-                checked={settings.notifications.billing}
+                id="surgery-notifications" 
+                checked={settings.notifications.surgeries}
                 onCheckedChange={(checked) => 
                   setSettings(prev => ({
                     ...prev,
-                    notifications: { ...prev.notifications, billing: checked }
+                    notifications: { ...prev.notifications, surgeries: checked }
                   }))
                 }
               />

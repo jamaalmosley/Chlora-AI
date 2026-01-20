@@ -13,7 +13,6 @@ interface MatchedPhysician {
   rating: number;
   distance: string;
   availability: string;
-  insuranceAccepted: boolean;
   matchScore: number;
   practiceName: string;
   practiceAddress: string;

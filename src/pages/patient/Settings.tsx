@@ -20,7 +20,7 @@ export default function PatientSettings() {
       sms: false,
       appointments: true,
       testResults: true,
-      billing: true
+      surgeries: true
     },
     privacy: {
       shareData: false,
@@ -234,16 +234,16 @@ export default function PatientSettings() {
             
             <div className="flex items-center justify-between">
               <div>
-                <Label htmlFor="billing-notifications">Billing Notifications</Label>
-                <p className="text-sm text-gray-500">Get notified about payments and bills</p>
+                <Label htmlFor="surgery-notifications">Surgery Notifications</Label>
+                <p className="text-sm text-gray-500">Get notified about surgery updates</p>
               </div>
               <Switch 
-                id="billing-notifications" 
-                checked={settings.notifications.billing}
+                id="surgery-notifications" 
+                checked={settings.notifications.surgeries}
                 onCheckedChange={(checked) => 
                   setSettings(prev => ({
                     ...prev,
-                    notifications: { ...prev.notifications, billing: checked }
+                    notifications: { ...prev.notifications, surgeries: checked }
                   }))
                 }
               />

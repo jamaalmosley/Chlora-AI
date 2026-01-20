@@ -18,7 +18,7 @@ import PatientAppointments from "./pages/patient/Appointments";
 import PatientRecords from "./pages/patient/Records";
 import PatientMedications from "./pages/patient/Medications";
 import PatientProfile from "./pages/patient/Profile";
-import PatientPayments from "./pages/patient/Payments";
+
 import AssignedPhysician from "@/pages/patient/AssignedPhysician";
 import FindPhysician from "./pages/patient/FindPhysician";
 
@@ -31,13 +31,12 @@ import DoctorProfile from "./pages/doctor/Profile";
 import DoctorPractice from "./pages/doctor/Practice";
 import DoctorStaff from "./pages/doctor/Staff";
 import DoctorAppointments from "./pages/doctor/Appointments";
-import DoctorBilling from "./pages/doctor/Billing";
+
 import DoctorSettings from "./pages/doctor/Settings";
 import DoctorChatPage from "./pages/doctor/Chat";
 import DoctorTestResults from "./pages/doctor/TestResults";
 
 // Patient Pages (additional)
-import PatientBilling from "./pages/patient/Billing";
 import PatientSettings from "./pages/patient/Settings";
 
 // Admin Pages
@@ -148,14 +147,6 @@ const AppContent = () => {
         } 
       />
       <Route 
-        path="/patient/payments" 
-        element={
-          <ProtectedRoute allowedRoles={['patient']}>
-            <PatientPayments />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
         path="/patient/physician" 
         element={
           <ProtectedRoute allowedRoles={['patient']}>
@@ -168,14 +159,6 @@ const AppContent = () => {
         element={
           <ProtectedRoute allowedRoles={['patient']}>
             <FindPhysician />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/patient/billing"
-        element={
-          <ProtectedRoute allowedRoles={['patient']}>
-            <PatientBilling />
           </ProtectedRoute>
         } 
       />
@@ -226,14 +209,6 @@ const AppContent = () => {
         element={
           <ProtectedRoute allowedRoles={['doctor']}>
             <DoctorAppointments />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/doctor/billing" 
-        element={
-          <ProtectedRoute allowedRoles={['doctor']}>
-            <DoctorBilling />
           </ProtectedRoute>
         } 
       />

@@ -33,8 +33,6 @@ export interface Patient {
   address?: string;
   phone?: string;
   phoneNumber?: string;
-  insuranceProvider?: string;
-  insuranceNumber?: string;
   emergencyContact?: {
     name: string;
     relationship: string;
