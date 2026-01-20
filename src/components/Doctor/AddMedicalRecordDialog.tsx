@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Upload, X, FileText } from "lucide-react";
+import { medicalRecordSchema, validateInput } from "@/lib/validations";
 
 interface AddMedicalRecordDialogProps {
   open: boolean;
@@ -86,26 +87,30 @@ export function AddMedicalRecordDialog({
   const handleSubmit = async (e: React.FormEvent, releaseNow: boolean = false) => {
     e.preventDefault();
     
-    if (!formData.testType || !formData.testName || !formData.testDate) {
-      toast.error("Please fill in all required fields");
+    // Validate input using Zod schema
+    const validationResult = validateInput(medicalRecordSchema, formData);
+
+    if (!validationResult.success) {
+      toast.error(validationResult.error);
       return;
     }
 
+    const validatedData = validationResult.data;
     setLoading(true);
 
     try {
       // Upload files first
       const fileUrls = files.length > 0 ? await uploadFiles() : [];
 
-      // Create medical record
+      // Create medical record with validated data
       const { error } = await supabase.from("medical_records").insert([{
         patient_id: patientId,
         doctor_id: doctorId,
-        test_type: formData.testType as any,
-        test_name: formData.testName,
-        test_date: formData.testDate,
-        findings: formData.findings,
-        notes: formData.notes,
+        test_type: validatedData.testType as any,
+        test_name: validatedData.testName,
+        test_date: validatedData.testDate,
+        findings: validatedData.findings,
+        notes: validatedData.notes,
         file_urls: fileUrls,
         status: releaseNow ? "released" : "draft",
         released_at: releaseNow ? new Date().toISOString() : null,

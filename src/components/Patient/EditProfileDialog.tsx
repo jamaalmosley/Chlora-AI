@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X } from "lucide-react";
+import { patientProfileSchema, validateInput } from "@/lib/validations";
 
 interface PatientData {
   id: string;
@@ -71,17 +72,47 @@ export function EditProfileDialog({ open, onOpenChange, patientData, onUpdate }:
   };
 
   const handleSave = async () => {
+    // Validate input using Zod schema
+    const updateData = {
+      date_of_birth: formData.date_of_birth || undefined,
+      address: formData.address || undefined,
+      insurance_provider: formData.insurance_provider || undefined,
+      insurance_number: formData.insurance_number || undefined,
+      emergency_contact_name: formData.emergency_contact_name || undefined,
+      emergency_contact_relationship: formData.emergency_contact_relationship || undefined,
+      emergency_contact_phone: formData.emergency_contact_phone || undefined,
+      medical_history: medicalHistory,
+      allergies: allergies,
+    };
+
+    const validationResult = validateInput(patientProfileSchema, updateData);
+
+    if (!validationResult.success) {
+      toast({
+        title: "Invalid Input",
+        description: validationResult.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const validatedData = validationResult.data;
+
     setIsLoading(true);
     try {
-      const updateData = {
-        ...formData,
-        medical_history: medicalHistory,
-        allergies: allergies,
-      };
-
       const { error } = await supabase
         .from("patients")
-        .update(updateData)
+        .update({
+          date_of_birth: validatedData.date_of_birth || null,
+          address: validatedData.address || null,
+          insurance_provider: validatedData.insurance_provider || null,
+          insurance_number: validatedData.insurance_number || null,
+          emergency_contact_name: validatedData.emergency_contact_name || null,
+          emergency_contact_relationship: validatedData.emergency_contact_relationship || null,
+          emergency_contact_phone: validatedData.emergency_contact_phone || null,
+          medical_history: validatedData.medical_history || null,
+          allergies: validatedData.allergies || null,
+        })
         .eq("id", patientData.id);
 
       if (error) throw error;
