@@ -1,12 +1,11 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, User, MapPin, FileText, Plus, Search } from "lucide-react";
+import { Calendar, Clock, User, MapPin, FileText, Plus, Search, ClipboardCheck, Camera, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -15,176 +14,258 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SurgeryChecklistDialog } from "@/components/Surgery/SurgeryChecklistDialog";
+import { PreOpImagesDialog } from "@/components/Surgery/PreOpImagesDialog";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Surgery {
   id: string;
   patient_id: string;
   doctor_id: string;
   surgery_date: string;
-  surgery_time: string;
   procedure_name: string;
-  location: string;
+  location: string | null;
   notes: string | null;
   status: string;
-  estimated_duration: string | null;
-  patient: {
-    user: {
-      first_name: string | null;
-      last_name: string | null;
-    }
+  patient?: {
+    id: string;
+    first_name?: string | null;
+    last_name?: string | null;
   } | null;
+  checklist_progress?: {
+    completed: number;
+    total: number;
+  };
 }
 
 export default function DoctorSurgeries() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [surgeries, setSurgeries] = useState<Surgery[]>([]);
-  const [filteredSurgeries, setFilteredSurgeries] = useState<Surgery[]>([]);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [doctorData, setDoctorData] = useState<any>(null);
-  const [patients, setPatients] = useState<any[]>([]);
-  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("scheduled");
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [selectedSurgeryForChecklist, setSelectedSurgeryForChecklist] = useState<Surgery | null>(null);
+  const [selectedSurgeryForImages, setSelectedSurgeryForImages] = useState<Surgery | null>(null);
   const [newSurgery, setNewSurgery] = useState({
     patient_id: '',
     surgery_date: '',
-    surgery_time: '',
     procedure_name: '',
     location: '',
     notes: '',
-    estimated_duration: ''
   });
 
-  useEffect(() => {
-    const loadDoctorData = async () => {
-      if (!user) {
-        setIsLoading(false);
-        return;
-      }
+  // Fetch doctor data
+  const { data: doctorData } = useQuery({
+    queryKey: ['doctor', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from('doctors')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch patients for the doctor
+  const { data: patients = [] } = useQuery({
+    queryKey: ['doctor-patients', doctorData?.id],
+    queryFn: async () => {
+      if (!doctorData?.id) return [];
       
-      console.log('Loading doctor surgeries data for user:', user.id);
-      setIsLoading(true);
+      // Get patients from appointments
+      const { data: appointments } = await supabase
+        .from('appointments')
+        .select('patient_id')
+        .eq('doctor_id', doctorData.id);
+
+      const patientIds = [...new Set(appointments?.map(apt => apt.patient_id) || [])];
       
-      try {
-        // Get doctor data
-        const { data: doctor, error: doctorError } = await supabase
-          .from('doctors')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
+      if (patientIds.length === 0) return [];
 
-        if (doctorError) {
-          console.error('Error fetching doctor:', doctorError);
-          throw doctorError;
-        }
-        
-        console.log('Doctor data loaded:', doctor);
-        setDoctorData(doctor);
+      const { data: patientsData } = await supabase
+        .from('patients')
+        .select(`id, profiles:user_id(first_name, last_name)`)
+        .in('id', patientIds);
 
-        // Get doctor's patients from appointments
-        const { data: appointments } = await supabase
-          .from('appointments')
-          .select('patient_id')
-          .eq('doctor_id', doctor.id);
+      return patientsData || [];
+    },
+    enabled: !!doctorData?.id,
+  });
 
-        console.log('Appointments found:', appointments?.length || 0);
+  // Fetch surgeries
+  const { data: surgeries = [], isLoading } = useQuery({
+    queryKey: ['surgeries', doctorData?.id],
+    queryFn: async () => {
+      if (!doctorData?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('surgeries')
+        .select(`
+          *,
+          patient:patients(id)
+        `)
+        .eq('doctor_id', doctorData.id)
+        .order('surgery_date', { ascending: true });
 
-        const patientIds = [...new Set(appointments?.map(apt => apt.patient_id) || [])];
-
-        if (patientIds.length > 0) {
-          const { data: patientsData } = await supabase
+      if (error) throw error;
+      
+      // Fetch patient profiles and checklist progress separately
+      const surgeriesWithData = await Promise.all((data || []).map(async (surgery) => {
+        // Get patient profile
+        let patientInfo = null;
+        if (surgery.patient?.id) {
+          const { data: patientData } = await supabase
             .from('patients')
-            .select(`
-              id,
-              user:profiles(first_name, last_name)
-            `)
-            .in('id', patientIds);
-
-          console.log('Patients loaded:', patientsData?.length || 0);
-          setPatients(patientsData || []);
+            .select('id, user_id')
+            .eq('id', surgery.patient.id)
+            .single();
+          
+          if (patientData?.user_id) {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', patientData.user_id)
+              .single();
+            
+            patientInfo = {
+              id: patientData.id,
+              first_name: profileData?.first_name,
+              last_name: profileData?.last_name,
+            };
+          }
         }
 
-        // Mock surgeries data since we don't have a surgeries table yet
-        // In a real implementation, you'd fetch from a surgeries table
-        const mockSurgeries: Surgery[] = [];
-        setSurgeries(mockSurgeries);
-        setFilteredSurgeries(mockSurgeries);
-      } catch (error) {
-        console.error('Error loading surgeries data:', error);
-        toast({
-          title: "Error Loading Data",
-          description: "Failed to load surgeries data. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadDoctorData();
-  }, [user, toast]);
+        // Get checklist progress
+        const { data: checklists } = await supabase
+          .from('surgery_checklists')
+          .select('id, items')
+          .eq('surgery_id', surgery.id);
 
-  useEffect(() => {
-    const filtered = surgeries.filter(surgery => {
-      const patientName = `${surgery.patient?.user?.first_name || ''} ${surgery.patient?.user?.last_name || ''}`.toLowerCase();
-      const procedure = surgery.procedure_name.toLowerCase();
-      const search = searchTerm.toLowerCase();
+        let checklistProgress = undefined;
+        if (checklists && checklists.length > 0) {
+          const checklist = checklists[0];
+          const items = (checklist.items as any[]) || [];
+          
+          const { data: completions } = await supabase
+            .from('checklist_item_completions')
+            .select('item_index')
+            .eq('checklist_id', checklist.id);
+
+          checklistProgress = {
+            completed: completions?.length || 0,
+            total: items.length,
+          };
+        }
+
+        return {
+          id: surgery.id,
+          patient_id: surgery.patient_id,
+          doctor_id: surgery.doctor_id,
+          surgery_date: surgery.surgery_date,
+          procedure_name: surgery.procedure_name,
+          location: surgery.location,
+          notes: surgery.notes,
+          status: surgery.status,
+          patient: patientInfo,
+          checklist_progress: checklistProgress,
+        } as Surgery;
+      }));
+
+      return surgeriesWithData;
+    },
+    enabled: !!doctorData?.id,
+  });
+
+  // Create surgery mutation
+  const createSurgeryMutation = useMutation({
+    mutationFn: async (surgeryData: typeof newSurgery) => {
+      if (!doctorData?.id) throw new Error('No doctor found');
       
-      const matchesSearch = patientName.includes(search) || procedure.includes(search);
-      const matchesTab = activeTab === 'all' || surgery.status === activeTab;
-      
-      return matchesSearch && matchesTab;
-    });
-    setFilteredSurgeries(filtered);
-  }, [searchTerm, surgeries, activeTab]);
+      const { data, error } = await supabase
+        .from('surgeries')
+        .insert({
+          patient_id: surgeryData.patient_id,
+          doctor_id: doctorData.id,
+          surgery_date: surgeryData.surgery_date,
+          procedure_name: surgeryData.procedure_name,
+          location: surgeryData.location || null,
+          notes: surgeryData.notes || null,
+          status: 'scheduled',
+        })
+        .select()
+        .single();
 
-  const handleScheduleSurgery = async () => {
-    if (!newSurgery.patient_id || !newSurgery.surgery_date || !newSurgery.procedure_name || !doctorData) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      // For demonstration, we'll just show a success message
-      // In a real implementation, you'd save to a surgeries table
-      toast({
-        title: "Surgery Scheduled",
-        description: "The surgery has been successfully scheduled.",
-      });
-
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['surgeries'] });
       setIsScheduleDialogOpen(false);
       setNewSurgery({
         patient_id: '',
         surgery_date: '',
-        surgery_time: '',
         procedure_name: '',
         location: '',
         notes: '',
-        estimated_duration: ''
       });
-    } catch (error) {
+      toast({
+        title: "Surgery Scheduled",
+        description: "The surgery has been successfully scheduled.",
+      });
+    },
+    onError: (error) => {
       console.error('Error scheduling surgery:', error);
       toast({
         title: "Error",
         description: "Failed to schedule surgery. Please try again.",
         variant: "destructive",
       });
-    }
-  };
+    },
+  });
 
-  const getTabCounts = () => {
-    return {
-      scheduled: surgeries.filter(s => s.status === 'scheduled').length,
-      completed: surgeries.filter(s => s.status === 'completed').length,
-      cancelled: surgeries.filter(s => s.status === 'cancelled').length,
-      all: surgeries.length
-    };
-  };
+  // Update surgery status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase
+        .from('surgeries')
+        .update({ status })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['surgeries'] });
+      toast({
+        title: "Status Updated",
+        description: "Surgery status has been updated.",
+      });
+    },
+  });
+
+  const filteredSurgeries = surgeries.filter((surgery) => {
+    const patientName = `${surgery.patient?.first_name || ''} ${surgery.patient?.last_name || ''}`.toLowerCase();
+    const procedure = surgery.procedure_name.toLowerCase();
+    const search = searchTerm.toLowerCase();
+    
+    const matchesSearch = patientName.includes(search) || procedure.includes(search);
+    const matchesTab = activeTab === 'all' || surgery.status === activeTab;
+    
+    return matchesSearch && matchesTab;
+  });
+
+  const getTabCounts = () => ({
+    scheduled: surgeries.filter((s) => s.status === 'scheduled').length,
+    completed: surgeries.filter((s) => s.status === 'completed').length,
+    cancelled: surgeries.filter((s) => s.status === 'cancelled').length,
+    all: surgeries.length,
+  });
+
+  const tabCounts = getTabCounts();
 
   if (isLoading) {
     return (
@@ -202,15 +283,13 @@ export default function DoctorSurgeries() {
     );
   }
 
-  const tabCounts = getTabCounts();
-
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Surgery Schedule</h1>
-            <p className="text-gray-600 mt-2">Manage your scheduled surgeries</p>
+            <h1 className="text-3xl font-bold text-foreground">Surgery Schedule</h1>
+            <p className="text-muted-foreground mt-2">Manage surgeries, checklists, and pre-op documentation</p>
           </div>
           <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
             <DialogTrigger asChild>
@@ -232,9 +311,9 @@ export default function DoctorSurgeries() {
                         <SelectValue placeholder="Select patient" />
                       </SelectTrigger>
                       <SelectContent>
-                        {patients.map((patient) => (
+                        {patients.map((patient: any) => (
                           <SelectItem key={patient.id} value={patient.id}>
-                            {patient.user?.first_name} {patient.user?.last_name}
+                            {patient.profiles?.first_name} {patient.profiles?.last_name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -252,25 +331,14 @@ export default function DoctorSurgeries() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="date">Surgery Date</Label>
+                    <Label htmlFor="date">Surgery Date & Time</Label>
                     <Input
                       id="date"
-                      type="date"
+                      type="datetime-local"
                       value={newSurgery.surgery_date}
                       onChange={(e) => setNewSurgery(prev => ({ ...prev, surgery_date: e.target.value }))}
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="time">Surgery Time</Label>
-                    <Input
-                      id="time"
-                      type="time"
-                      value={newSurgery.surgery_time}
-                      onChange={(e) => setNewSurgery(prev => ({ ...prev, surgery_time: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="location">Location</Label>
                     <Input
@@ -278,15 +346,6 @@ export default function DoctorSurgeries() {
                       value={newSurgery.location}
                       onChange={(e) => setNewSurgery(prev => ({ ...prev, location: e.target.value }))}
                       placeholder="Operating Room / Hospital"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="duration">Estimated Duration</Label>
-                    <Input
-                      id="duration"
-                      value={newSurgery.estimated_duration}
-                      onChange={(e) => setNewSurgery(prev => ({ ...prev, estimated_duration: e.target.value }))}
-                      placeholder="e.g., 2 hours"
                     />
                   </div>
                 </div>
@@ -304,8 +363,11 @@ export default function DoctorSurgeries() {
                   <Button variant="outline" onClick={() => setIsScheduleDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleScheduleSurgery}>
-                    Schedule Surgery
+                  <Button 
+                    onClick={() => createSurgeryMutation.mutate(newSurgery)}
+                    disabled={createSurgeryMutation.isPending}
+                  >
+                    {createSurgeryMutation.isPending ? "Scheduling..." : "Schedule Surgery"}
                   </Button>
                 </div>
               </div>
@@ -319,7 +381,7 @@ export default function DoctorSurgeries() {
         <Card className="lg:col-span-3">
           <CardContent className="pt-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="Search surgeries by patient or procedure..."
                 value={searchTerm}
@@ -358,35 +420,57 @@ export default function DoctorSurgeries() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="scheduled" className="mt-6">
-          <SurgeriesList surgeries={filteredSurgeries} />
-        </TabsContent>
-        
-        <TabsContent value="completed" className="mt-6">
-          <SurgeriesList surgeries={filteredSurgeries} />
-        </TabsContent>
-        
-        <TabsContent value="cancelled" className="mt-6">
-          <SurgeriesList surgeries={filteredSurgeries} />
-        </TabsContent>
-        
-        <TabsContent value="all" className="mt-6">
-          <SurgeriesList surgeries={filteredSurgeries} />
-        </TabsContent>
+        {['scheduled', 'completed', 'cancelled', 'all'].map((tab) => (
+          <TabsContent key={tab} value={tab} className="mt-6">
+            <SurgeriesList 
+              surgeries={filteredSurgeries}
+              onOpenChecklist={setSelectedSurgeryForChecklist}
+              onOpenImages={setSelectedSurgeryForImages}
+              onUpdateStatus={(id, status) => updateStatusMutation.mutate({ id, status })}
+            />
+          </TabsContent>
+        ))}
       </Tabs>
+
+      {/* Checklist Dialog */}
+      {selectedSurgeryForChecklist && (
+        <SurgeryChecklistDialog
+          open={!!selectedSurgeryForChecklist}
+          onOpenChange={(open) => !open && setSelectedSurgeryForChecklist(null)}
+          surgeryId={selectedSurgeryForChecklist.id}
+          surgeryName={selectedSurgeryForChecklist.procedure_name}
+        />
+      )}
+
+      {/* Images Dialog */}
+      {selectedSurgeryForImages && (
+        <PreOpImagesDialog
+          open={!!selectedSurgeryForImages}
+          onOpenChange={(open) => !open && setSelectedSurgeryForImages(null)}
+          surgeryId={selectedSurgeryForImages.id}
+          surgeryName={selectedSurgeryForImages.procedure_name}
+        />
+      )}
     </div>
   );
 }
 
-function SurgeriesList({ surgeries }: { surgeries: Surgery[] }) {
+interface SurgeriesListProps {
+  surgeries: Surgery[];
+  onOpenChecklist: (surgery: Surgery) => void;
+  onOpenImages: (surgery: Surgery) => void;
+  onUpdateStatus: (id: string, status: string) => void;
+}
+
+function SurgeriesList({ surgeries, onOpenChecklist, onOpenImages, onUpdateStatus }: SurgeriesListProps) {
   if (surgeries.length === 0) {
     return (
       <Card>
         <CardContent className="pt-6">
           <div className="text-center py-12">
-            <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No surgeries found</h3>
-            <p className="text-gray-600 mb-4">
+            <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">No surgeries found</h3>
+            <p className="text-muted-foreground mb-4">
               No surgeries match the current filter criteria.
             </p>
           </div>
@@ -402,22 +486,35 @@ function SurgeriesList({ surgeries }: { surgeries: Surgery[] }) {
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
               <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-red-600" />
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                  <FileText className="h-6 w-6 text-primary" />
                 </div>
                 
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
                     <h3 className="text-lg font-semibold">{surgery.procedure_name}</h3>
-                    <Badge variant={surgery.status === 'scheduled' ? 'default' : 'secondary'}>
+                    <Badge variant={
+                      surgery.status === 'scheduled' ? 'default' : 
+                      surgery.status === 'completed' ? 'secondary' : 'destructive'
+                    }>
                       {surgery.status}
                     </Badge>
+                    {surgery.checklist_progress && (
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        {surgery.checklist_progress.completed === surgery.checklist_progress.total ? (
+                          <CheckCircle2 className="h-3 w-3 text-green-600" />
+                        ) : (
+                          <ClipboardCheck className="h-3 w-3" />
+                        )}
+                        {surgery.checklist_progress.completed}/{surgery.checklist_progress.total}
+                      </Badge>
+                    )}
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-muted-foreground mb-4">
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4" />
-                      <span>{surgery.patient?.user?.first_name} {surgery.patient?.user?.last_name}</span>
+                      <span>{surgery.patient?.first_name} {surgery.patient?.last_name}</span>
                     </div>
                     
                     <div className="flex items-center space-x-2">
@@ -427,17 +524,19 @@ function SurgeriesList({ surgeries }: { surgeries: Surgery[] }) {
                     
                     <div className="flex items-center space-x-2">
                       <Clock className="h-4 w-4" />
-                      <span>{surgery.surgery_time}</span>
+                      <span>{format(new Date(surgery.surgery_date), 'h:mm a')}</span>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
-                      <MapPin className="h-4 w-4" />
-                      <span>{surgery.location}</span>
-                    </div>
+                    {surgery.location && (
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-4 w-4" />
+                        <span>{surgery.location}</span>
+                      </div>
+                    )}
                   </div>
 
                   {surgery.notes && (
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-muted-foreground">
                       <span className="font-medium">Notes: </span>
                       <span>{surgery.notes}</span>
                     </div>
@@ -446,12 +545,40 @@ function SurgeriesList({ surgeries }: { surgeries: Surgery[] }) {
               </div>
               
               <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm">
-                  Edit
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => onOpenChecklist(surgery)}
+                >
+                  <ClipboardCheck className="mr-1 h-4 w-4" />
+                  Checklist
                 </Button>
-                <Button variant="destructive" size="sm">
-                  Cancel
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => onOpenImages(surgery)}
+                >
+                  <Camera className="mr-1 h-4 w-4" />
+                  Images
                 </Button>
+                {surgery.status === 'scheduled' && (
+                  <>
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      onClick={() => onUpdateStatus(surgery.id, 'completed')}
+                    >
+                      Complete
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => onUpdateStatus(surgery.id, 'cancelled')}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </CardContent>
