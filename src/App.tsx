@@ -35,6 +35,7 @@ import DoctorAppointments from "./pages/doctor/Appointments";
 import DoctorSettings from "./pages/doctor/Settings";
 import DoctorChatPage from "./pages/doctor/Chat";
 import DoctorTestResults from "./pages/doctor/TestResults";
+import DoctorBilling from "./pages/doctor/Billing";
 
 // Patient Pages (additional)
 import PatientSettings from "./pages/patient/Settings";
@@ -273,6 +274,14 @@ const AppContent = () => {
         element={
           <ProtectedRoute allowedRoles={['doctor']}>
             <DoctorTestResults />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/doctor/billing" 
+        element={
+          <ProtectedRoute allowedRoles={['doctor']}>
+            <DoctorBilling />
           </ProtectedRoute>
         } 
       />

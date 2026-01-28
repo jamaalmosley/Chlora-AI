@@ -66,6 +66,11 @@ export function Sidebar() {
       icon: FileText,
     },
     {
+      label: "Billing",
+      path: "/doctor/billing",
+      icon: FileText,
+    },
+    {
       label: "Settings",
       path: "/doctor/settings",
       icon: Settings,
